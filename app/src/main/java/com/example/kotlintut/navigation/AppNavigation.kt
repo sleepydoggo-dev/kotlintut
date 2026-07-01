@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -17,6 +19,7 @@ import com.example.kotlintut.ui.components.DrawerHeader
 import com.example.kotlintut.ui.components.DrawerItem
 import com.example.kotlintut.ui.screens.*
 import com.example.kotlintut.viewmodel.AppViewModel
+import com.example.kotlintut.viewmodel.ProductViewModel
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
@@ -35,24 +38,27 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AppNavigation(viewModel: AppViewModel) {
+fun AppNavigation(
+    appViewModel: AppViewModel,
+    productViewModel: ProductViewModel = viewModel()
+) {
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     
-    var selectedProduct by remember { mutableStateOf<com.example.kotlintut.data.model.Product?>(null) }
+    val productUiState by productViewModel.uiState.collectAsStateWithLifecycle()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
-                DrawerHeader(username = viewModel.loggedUser.value ?: "Ospite")
+                DrawerHeader(username = appViewModel.loggedUser.value ?: "Ospite")
                 Spacer(Modifier.height(12.dp))
                 DrawerItem("Home", Icons.Default.Home, true) {
                     scope.launch { drawerState.close() }
                     navController.navigate(Screen.Categories.route)
                 }
-                if (viewModel.loggedUser.value == null) {
+                if (appViewModel.loggedUser.value == null) {
                     DrawerItem("Login", Icons.Default.Login, false) {
                         scope.launch { drawerState.close() }
                         navController.navigate(Screen.AuthGateway.route)
@@ -69,7 +75,7 @@ fun AppNavigation(viewModel: AppViewModel) {
                     Spacer(Modifier.weight(1f))
                     DrawerItem("Logout", Icons.Default.Logout, false) {
                         scope.launch { drawerState.close() }
-                        viewModel.logout()
+                        appViewModel.logout()
                         navController.navigate(Screen.AuthGateway.route)
                     }
                 }
@@ -78,7 +84,7 @@ fun AppNavigation(viewModel: AppViewModel) {
     ) {
         NavHost(
             navController = navController,
-            startDestination = if (viewModel.loggedUser.value != null) Screen.Categories.route else Screen.AuthGateway.route
+            startDestination = if (appViewModel.loggedUser.value != null) Screen.Categories.route else Screen.AuthGateway.route
         ) {
             composable(Screen.AuthGateway.route) {
                 AuthGatewayScreen(
@@ -90,7 +96,7 @@ fun AppNavigation(viewModel: AppViewModel) {
             composable(Screen.Login.route) {
                 LoginScreen(
                     onLoginSuccess = { username ->
-                        viewModel.login(username)
+                        appViewModel.login(username)
                         navController.navigate(Screen.Categories.route) {
                             popUpTo(Screen.AuthGateway.route) { inclusive = true }
                         }
@@ -101,7 +107,7 @@ fun AppNavigation(viewModel: AppViewModel) {
             composable(Screen.Register.route) {
                 RegisterScreen(
                     onRegisterSuccess = { username ->
-                        viewModel.login(username)
+                        appViewModel.login(username)
                         navController.navigate(Screen.Categories.route) {
                             popUpTo(Screen.AuthGateway.route) { inclusive = true }
                         }
@@ -111,7 +117,9 @@ fun AppNavigation(viewModel: AppViewModel) {
             }
             composable(Screen.Categories.route) {
                 CategoriesScreen(
+                    categories = productUiState.categories,
                     onCategoryClick = { category ->
+                        productViewModel.selectCategory(category)
                         navController.navigate(Screen.Products.createRoute(category))
                     },
                     onMenuClick = { scope.launch { drawerState.open() } }
@@ -120,43 +128,46 @@ fun AppNavigation(viewModel: AppViewModel) {
             composable(
                 route = Screen.Products.route,
                 arguments = listOf(navArgument("category") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val category = backStackEntry.arguments?.getString("category") ?: "Panini"
-                val products = viewModel.getProductsByCategory(category)
+            ) {
                 ProductsScreen(
-                    category = category,
-                    products = products,
+                    category = productUiState.selectedCategory ?: "Panini",
+                    products = productUiState.products,
                     onProductClick = { product ->
-                        selectedProduct = product
+                        productViewModel.selectProduct(product)
                         navController.navigate(Screen.ProductDetail.route)
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { 
+                        productViewModel.clearCategorySelection()
+                        navController.popBackStack() 
+                    }
                 )
             }
             composable(Screen.ProductDetail.route) {
-                selectedProduct?.let { product ->
-                    val attributes = viewModel.getAttributesByProduct(product.name)
+                productUiState.selectedProduct?.let { product ->
                     ProductDetailScreen(
                         product = product,
-                        attributes = attributes,
+                        attributes = productUiState.productAttributes,
                         isFavorite = false,
                         onFavoriteToggle = { /* TODO */ },
                         onAddToCart = { qty, attrs ->
-                            viewModel.addToCart(product, qty, attrs)
+                            appViewModel.addToCart(product, qty, attrs)
                             navController.popBackStack()
                         },
-                        onBack = { navController.popBackStack() }
+                        onBack = { 
+                            productViewModel.clearProductSelection()
+                            navController.popBackStack() 
+                        }
                     )
                 }
             }
             composable(Screen.Cart.route) {
                 CartScreen(
-                    items = viewModel.cartItems,
-                    total = viewModel.getCartTotal(),
-                    onQuantityChange = { item, delta -> viewModel.updateCartItemQuantity(item, delta) },
-                    onRemoveItem = { item -> viewModel.removeFromCart(item) },
+                    items = appViewModel.cartItems,
+                    total = appViewModel.getCartTotal(),
+                    onQuantityChange = { item, delta -> appViewModel.updateCartItemQuantity(item, delta) },
+                    onRemoveItem = { item -> appViewModel.removeFromCart(item) },
                     onCheckoutClick = {
-                        if (viewModel.loggedUser.value != null) {
+                        if (appViewModel.loggedUser.value != null) {
                             navController.navigate(Screen.Payment.route)
                         } else {
                             navController.navigate(Screen.AuthGateway.route)
@@ -167,9 +178,9 @@ fun AppNavigation(viewModel: AppViewModel) {
             }
             composable(Screen.Payment.route) {
                 PaymentScreen(
-                    total = viewModel.getCartTotal(),
+                    total = appViewModel.getCartTotal(),
                     onConfirm = {
-                        viewModel.confirmOrder()
+                        appViewModel.confirmOrder()
                         navController.navigate(Screen.Success.route) {
                             popUpTo(Screen.Categories.route) { inclusive = false }
                         }
