@@ -1,5 +1,6 @@
 package com.example.kotlintut.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -42,6 +43,7 @@ import com.example.kotlintut.ui.components.TotemTopBar
 /**
  * Categories Screen - Displays the list of available food categories.
  */
+/** Schermata che visualizza la griglia delle categorie, gestendo anche la navigazione gerarchica e il tasto indietro del sistema. */
 @Composable
 fun CategoriesScreen(
     title: String,
@@ -54,6 +56,13 @@ fun CategoriesScreen(
     onCartClick: () -> Unit,
     translate: (String) -> String
 ) {
+    // Intercetta il tasto indietro del sistema se non siamo al livello principale
+    if (showBack) {
+        BackHandler {
+            onBackClick()
+        }
+    }
+
     Scaffold(
         modifier = Modifier.pointerInput(Unit) {},
         topBar = { 
@@ -98,6 +107,7 @@ fun CategoriesScreen(
 /**
  * Products Screen - Displays products for a specific category.
  */
+/** Schermata che elenca i prodotti di una categoria specifica con funzionalità di ricerca e filtraggio. */
 @Composable
 fun ProductsScreen(
     category: String,
@@ -173,6 +183,7 @@ fun ProductsScreen(
 /**
  * Product Detail Screen - Allows selection of attributes and quantity.
  */
+/** Schermata di dettaglio di un prodotto che permette di personalizzare ingredienti, aggiungere extra e gestire la quantità. */
 @Composable
 fun ProductDetailScreen(
     product: Product,
@@ -266,6 +277,7 @@ fun ProductDetailScreen(
 
 // --- Sub-Components ---
 
+/** Componente per visualizzare il titolo della schermata corrente. */
 @Composable
 private fun ScreenTitle(text: String) {
     Text(
@@ -277,6 +289,7 @@ private fun ScreenTitle(text: String) {
     )
 }
 
+/** Card cliccabile che rappresenta una singola categoria con animazione al tocco. */
 @Composable
 private fun CategoryCard(category: String, label: String, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -323,6 +336,7 @@ private fun CategoryCard(category: String, label: String, onClick: () -> Unit) {
     }
 }
 
+/** Card che visualizza l'anteprima di un prodotto, inclusa immagine, nome e prezzo. */
 @Composable
 fun ProductCard(product: Product, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -395,6 +409,7 @@ fun ProductCard(product: Product, onClick: () -> Unit) {
     }
 }
 
+/** Barra inferiore per la gestione della quantità e l'aggiunta del prodotto al carrello con calcolo del prezzo totale. */
 @Composable
 private fun ProductPurchaseBar(
     basePrice: Double,
@@ -429,6 +444,7 @@ private fun ProductPurchaseBar(
     }
 }
 
+/** Visualizza l'immagine del prodotto in testata con il pulsante per gestire i preferiti. */
 @Composable
 private fun ProductHeaderImage(
     product: Product,
@@ -475,6 +491,7 @@ private fun ProductHeaderImage(
     }
 }
 
+/** Mostra il nome e la descrizione testuale del prodotto. */
 @Composable
 private fun ProductInfo(name: String, description: String) {
     Column {
@@ -483,6 +500,7 @@ private fun ProductInfo(name: String, description: String) {
     }
 }
 
+/** Elenca gli ingredienti base del prodotto, permettendo la rimozione di quelli contrassegnati come eliminabili. */
 @Composable
 private fun IngredientsList(
     ingredients: List<NetworkIngredient>,
@@ -515,6 +533,7 @@ private fun IngredientsList(
     }
 }
 
+/** Elenca le aggiunte extra opzionali per il prodotto, indicando il relativo sovrapprezzo. */
 @Composable
 private fun ExtrasList(
     extras: List<NetworkExtra>,
@@ -544,6 +563,7 @@ private fun ExtrasList(
     }
 }
 
+/** Visualizza un messaggio centrato quando una lista di prodotti o categorie risulta vuota. */
 @Composable
 private fun EmptyState(message: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

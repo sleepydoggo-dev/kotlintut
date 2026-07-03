@@ -42,6 +42,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(CartUiState())
     val uiState: StateFlow<CartUiState> = _uiState.asStateFlow()
 
+    /** Carica il carrello salvato dell'utente dal database locale all'avvio o al login. */
     fun loadCart(username: String) {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
@@ -50,6 +51,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Aggiunge un prodotto al carrello gestendo il raggruppamento se il prodotto e le personalizzazioni sono identici. */
     fun addToCart(username: String?, product: Product, quantity: Int, removedIngredients: List<NetworkIngredient>, addedExtras: List<NetworkExtra>) {
         val currentItems = _uiState.value.items.toMutableList()
         val existingIndex = currentItems.indexOfFirst { 
@@ -74,6 +76,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Modifica la quantità di un elemento già presente nel carrello e aggiorna il database locale. */
     fun updateQuantity(username: String?, item: CartItem, delta: Int) {
         val currentItems = _uiState.value.items.toMutableList()
         val index = currentItems.indexOf(item)
@@ -93,6 +96,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Rimuove definitivamente un elemento dal carrello e sincronizza la modifica sul database locale. */
     fun removeItem(username: String?, item: CartItem) {
         val currentItems = _uiState.value.items.filter { it != item }
         _uiState.update { it.copy(items = currentItems) }
@@ -103,6 +107,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Finalizza l'ordine corrente, salvandolo nel database locale e svuotando il carrello dell'utente. */
     fun confirmOrder(username: String) {
         val total = _uiState.value.total
         val items = _uiState.value.items
@@ -114,6 +119,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Recupera la cronologia di tutti gli ordini effettuati dall'utente specificato. */
     fun loadOrders(username: String) {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
@@ -122,6 +128,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
+    /** Ottiene i dettagli dei singoli prodotti inclusi in un ordine specifico. */
     fun loadOrderDetails(orderId: Int) {
         viewModelScope.launch {
             val items = dbHelper.getOrderItems(orderId)
@@ -129,6 +136,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Permette di riaggiungere al carrello tutti i prodotti di un ordine passato, rispettando le personalizzazioni originali. */
     fun reorder(username: String?, orderItems: List<CartItem>) {
         val currentItems = _uiState.value.items.toMutableList()
         orderItems.forEach { newItem ->
@@ -152,18 +160,22 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Aggiorna le informazioni di contatto fornite da un utente ospite durante il checkout. */
     fun updateGuestInfo(name: String, email: String) {
         _uiState.update { it.copy(guestName = name, guestEmail = email) }
     }
 
+    /** Aggiorna i dettagli del metodo di pagamento inseriti dall'utente durante la fase finale del checkout. */
     fun updatePaymentInfo(number: String, expiry: String, cvv: String) {
         _uiState.update { it.copy(cardNumber = number, cardExpiry = expiry, cardCvv = cvv) }
     }
 
+    /** Resetta lo stato di conferma dell'ordine per permettere una nuova navigazione pulita. */
     fun resetOrderConfirmation() {
         _uiState.update { it.copy(isOrderConfirmed = false) }
     }
     
+    /** Svuota completamente il carrello corrente e rimuove i dati salvati nel database per l'utente. */
     fun clearCart(username: String?) {
         _uiState.update { it.copy(items = emptyList()) }
         username?.let {

@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/** Barra superiore personalizzata dell'applicazione che gestisce il titolo, il menu laterale, il tasto indietro e l'icona del carrello animata. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TotemTopBar(
@@ -87,6 +88,7 @@ fun TotemTopBar(
     )
 }
 
+/** Testata del menu laterale (Drawer) che visualizza il nome dell'utente loggato e un messaggio di benvenuto. */
 @Composable
 fun DrawerHeader(username: String, welcomeText: String) {
     Box(
@@ -120,6 +122,7 @@ fun DrawerHeader(username: String, welcomeText: String) {
     }
 }
 
+/** Singolo elemento cliccabile del menu laterale con icona e label personalizzata. */
 @Composable
 fun DrawerItem(
     label: String,

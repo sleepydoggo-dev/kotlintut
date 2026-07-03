@@ -15,6 +15,7 @@ import com.example.kotlintut.ui.theme.RistoranteTotemTheme
 import com.example.kotlintut.viewmodel.AppViewModel
 
 class MainActivity : ComponentActivity() {
+    /** Punto di ingresso principale dell'attività: configura il tema dell'app e avvia la navigazione Compose. */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

@@ -5,6 +5,10 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.example.kotlintut.data.model.*
+import com.example.kotlintut.data.network.NetworkExtra
+import com.example.kotlintut.data.network.NetworkIngredient
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -12,7 +16,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
 
     companion object {
         private const val DATABASE_NAME = "RistoranteTotem_Compose.db"
-        private const val DATABASE_VERSION = 5
+        private const val DATABASE_VERSION = 6
 
         const val TABLE_USERS = "utenti"
         const val COLUMN_USER_ID = "id"
@@ -47,6 +51,8 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         const val COLUMN_CART_DESC = "prodotto_desc"
         const val COLUMN_CART_QTY = "quantita"
         const val COLUMN_CART_IMG = "prodotto_img"
+        const val COLUMN_CART_REMOVED_ING = "removed_ingredients"
+        const val COLUMN_CART_ADDED_EXT = "added_extras"
 
         const val TABLE_ORDERS = "ordini"
         const val COLUMN_ORDER_ID = "id"
@@ -60,6 +66,8 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         const val COLUMN_ITEM_NAME = "prodotto_nome"
         const val COLUMN_ITEM_PRICE = "prodotto_prezzo"
         const val COLUMN_ITEM_QTY = "quantita"
+        const val COLUMN_ITEM_REMOVED_ING = "removed_ingredients"
+        const val COLUMN_ITEM_ADDED_EXT = "added_extras"
 
         const val TABLE_INGREDIENTS = "ingredienti"
         const val COLUMN_ING_ID = "id_ingrediente"
@@ -82,6 +90,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         const val COLUMN_FAV_PROD_IMG = "prodotto_img"
     }
 
+    /** Crea le tabelle del database al primo avvio dell'applicazione. */
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE $TABLE_USERS (
@@ -128,7 +137,9 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                 $COLUMN_CART_PREZZO REAL,
                 $COLUMN_CART_DESC TEXT,
                 $COLUMN_CART_QTY INTEGER,
-                $COLUMN_CART_IMG TEXT
+                $COLUMN_CART_IMG TEXT,
+                $COLUMN_CART_REMOVED_ING TEXT,
+                $COLUMN_CART_ADDED_EXT TEXT
             )
         """.trimIndent())
 
@@ -148,6 +159,8 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                 $COLUMN_ITEM_NAME TEXT,
                 $COLUMN_ITEM_PRICE REAL,
                 $COLUMN_ITEM_QTY INTEGER,
+                $COLUMN_ITEM_REMOVED_ING TEXT,
+                $COLUMN_ITEM_ADDED_EXT TEXT,
                 FOREIGN KEY($COLUMN_ITEM_ORDER_ID) REFERENCES $TABLE_ORDERS($COLUMN_ORDER_ID)
             )
         """.trimIndent())
@@ -186,6 +199,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         // Rimosso insertInitialProducts(db) per pulizia dati mock
     }
 
+    /** Gestisce l'aggiornamento del database eliminando le vecchie tabelle e ricreandole. */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS $TABLE_USERS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_CATEGORIES")
@@ -201,6 +215,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
 
     // --- METODI PER UPSERT (OFFLINE-FIRST) ---
 
+    /** Sincronizza le categorie scaricate dall'API salvandole o aggiornandole nel database locale. */
     fun upsertCategories(networkList: List<com.example.kotlintut.data.network.NetworkCategory>) {
         val db = writableDatabase
         db.beginTransaction()
@@ -229,6 +244,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         }
     }
 
+    /** Sincronizza i prodotti e i relativi ingredienti/aggiunte salvandoli nel database locale. */
     fun upsertProducts(networkList: List<com.example.kotlintut.data.network.NetworkProduct>, requestedCategoryId: String) {
         val db = writableDatabase
         db.beginTransaction()
@@ -275,6 +291,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         }
     }
 
+    /** Recupera tutte le categorie principali (root) dal database locale. */
     fun getAllCategoriesLocal(): List<com.example.kotlintut.data.network.NetworkCategory> {
         val list = mutableListOf<com.example.kotlintut.data.network.NetworkCategory>()
         val db = readableDatabase
@@ -296,6 +313,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         return list
     }
 
+    /** Recupera le sottocategorie appartenenti a una categoria padre specifica. */
     fun getSubCategoriesLocal(parentId: String): List<com.example.kotlintut.data.network.NetworkCategory> {
         val list = mutableListOf<com.example.kotlintut.data.network.NetworkCategory>()
         val db = readableDatabase
@@ -316,6 +334,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         return list
     }
 
+    /** Ottiene la lista dei prodotti associati a una determinata categoria dal database locale. */
     fun getProductsByCategory(category: String): List<Product> {
         val list = mutableListOf<Product>()
         val db = readableDatabase
@@ -335,6 +354,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         return list
     }
 
+    /** Recupera gli ingredienti base associati a un prodotto specifico dal database locale. */
     fun getIngredientsByProduct(productId: String): List<com.example.kotlintut.data.network.NetworkIngredient> {
         val list = mutableListOf<com.example.kotlintut.data.network.NetworkIngredient>()
         val db = readableDatabase
@@ -352,6 +372,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         return list
     }
 
+    /** Recupera le aggiunte extra disponibili per un prodotto specifico dal database locale. */
     fun getExtrasByProduct(productId: String): List<com.example.kotlintut.data.network.NetworkExtra> {
         val list = mutableListOf<com.example.kotlintut.data.network.NetworkExtra>()
         val db = readableDatabase
@@ -369,6 +390,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         return list
     }
 
+    /** Ottiene la lista dei prodotti preferiti di un utente dal database locale. */
     fun getFavorites(username: String): List<Product> {
         val list = mutableListOf<Product>()
         val db = readableDatabase
@@ -388,6 +410,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         return list
     }
 
+    /** Aggiunge un prodotto alla lista dei preferiti di un utente nel database locale. */
     fun addFavorite(username: String, product: Product) {
         val db = writableDatabase
         val values = ContentValues().apply {
@@ -400,19 +423,23 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         db.insert(TABLE_FAVORITES, null, values)
     }
 
+    /** Rimuove un prodotto dalla lista dei preferiti di un utente nel database locale. */
     fun removeFavorite(username: String, productName: String) {
         val db = writableDatabase
         db.delete(TABLE_FAVORITES, "$COLUMN_FAV_USER=? AND $COLUMN_FAV_PROD_NAME=?", arrayOf(username, productName))
     }
 
+    /** Verifica se un determinato prodotto è presente nei preferiti dell'utente nel database locale. */
     fun isFavorite(username: String, productName: String): Boolean {
         val db = readableDatabase
         return db.query(TABLE_FAVORITES, null, "$COLUMN_FAV_USER=? AND $COLUMN_FAV_PROD_NAME=?", arrayOf(username, productName), null, null, null).use { it.count > 0 }
     }
 
+    /** Salva il contenuto attuale del carrello nel database locale serializzando le personalizzazioni in JSON. */
     fun saveCart(username: String, items: List<CartItem>) {
         val db = writableDatabase
         db.delete(TABLE_CART, "$COLUMN_CART_USER=?", arrayOf(username))
+        val gson = Gson()
         items.forEach { item ->
             val values = ContentValues().apply {
                 put(COLUMN_CART_USER, username)
@@ -421,14 +448,21 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                 put(COLUMN_CART_DESC, item.product.description)
                 put(COLUMN_CART_QTY, item.quantity)
                 put(COLUMN_CART_IMG, item.product.imageKey)
+                put(COLUMN_CART_REMOVED_ING, gson.toJson(item.removedIngredients))
+                put(COLUMN_CART_ADDED_EXT, gson.toJson(item.addedExtras))
             }
             db.insert(TABLE_CART, null, values)
         }
     }
 
+    /** Carica il carrello salvato per un utente, deserializzando gli ingredienti e le aggiunte dal formato JSON. */
     fun loadCart(username: String): List<CartItem> {
         val list = mutableListOf<CartItem>()
         val db = readableDatabase
+        val gson = Gson()
+        val typeIng = object : TypeToken<List<NetworkIngredient>>() {}.type
+        val typeExt = object : TypeToken<List<NetworkExtra>>() {}.type
+
         db.query(TABLE_CART, null, "$COLUMN_CART_USER=?", arrayOf(username), null, null, null).use { cursor ->
             if (cursor.moveToFirst()) {
                 do {
@@ -439,16 +473,25 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                         description = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_DESC)),
                         imageKey = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_IMG))
                     )
-                    list.add(CartItem(product, cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_CART_QTY))))
+                    
+                    val removedIngJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_REMOVED_ING))
+                    val addedExtJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_ADDED_EXT))
+                    
+                    val removedIng: List<NetworkIngredient> = gson.fromJson(removedIngJson, typeIng) ?: emptyList()
+                    val addedExt: List<NetworkExtra> = gson.fromJson(addedExtJson, typeExt) ?: emptyList()
+
+                    list.add(CartItem(product, cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_CART_QTY)), removedIng, addedExt))
                 } while (cursor.moveToNext())
             }
         }
         return list
     }
 
+    /** Registra un nuovo ordine nel database locale, salvando i dettagli dei prodotti e le loro personalizzazioni. */
     fun saveOrder(username: String, total: Double, items: List<CartItem>) {
         val db = writableDatabase
         val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+        val gson = Gson()
         val orderValues = ContentValues().apply {
             put(COLUMN_ORDER_USER, username)
             put(COLUMN_ORDER_TOTAL, total)
@@ -462,12 +505,15 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                     put(COLUMN_ITEM_NAME, item.product.name)
                     put(COLUMN_ITEM_PRICE, item.product.price)
                     put(COLUMN_ITEM_QTY, item.quantity)
+                    put(COLUMN_ITEM_REMOVED_ING, gson.toJson(item.removedIngredients))
+                    put(COLUMN_ITEM_ADDED_EXT, gson.toJson(item.addedExtras))
                 }
                 db.insert(TABLE_ORDER_ITEMS, null, itemValues)
             }
         }
     }
 
+    /** Recupera la cronologia degli ordini effettuati da un utente dal database locale. */
     fun getOrdersByUser(username: String): List<Order> {
         val orders = mutableListOf<Order>()
         val db = readableDatabase
@@ -485,9 +531,14 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         return orders
     }
 
+    /** Ottiene i dettagli dei prodotti inclusi in un ordine specifico dal database locale. */
     fun getOrderItems(orderId: Int): List<CartItem> {
         val items = mutableListOf<CartItem>()
         val db = readableDatabase
+        val gson = Gson()
+        val typeIng = object : TypeToken<List<NetworkIngredient>>() {}.type
+        val typeExt = object : TypeToken<List<NetworkExtra>>() {}.type
+
         db.query(TABLE_ORDER_ITEMS, null, "$COLUMN_ITEM_ORDER_ID=?", arrayOf(orderId.toString()), null, null, null).use { cursor ->
             if (cursor.moveToFirst()) {
                 do {
@@ -498,13 +549,21 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                         description = "", 
                         imageKey = ""
                     )
-                    items.add(CartItem(product, cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ITEM_QTY))))
+                    
+                    val removedIngJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ITEM_REMOVED_ING))
+                    val addedExtJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ITEM_ADDED_EXT))
+                    
+                    val removedIng: List<NetworkIngredient> = gson.fromJson(removedIngJson, typeIng) ?: emptyList()
+                    val addedExt: List<NetworkExtra> = gson.fromJson(addedExtJson, typeExt) ?: emptyList()
+
+                    items.add(CartItem(product, cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ITEM_QTY)), removedIng, addedExt))
                 } while (cursor.moveToNext())
             }
         }
         return items
     }
 
+    /** Verifica le credenziali di login nel database locale e restituisce l'username se corretti. */
     fun loginAndGetUsername(identifier: String, pass: String): String? {
         val db = readableDatabase
         val cursor = db.query(
@@ -519,6 +578,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         }
     }
 
+    /** Controlla se un utente esiste già nel database locale tramite il suo username. */
     fun userExists(username: String): Boolean {
         val db = readableDatabase
         val cursor = db.query(
@@ -531,6 +591,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         return cursor.use { it.count > 0 }
     }
 
+    /** Registra un nuovo utente nel database locale salvando i suoi dati personali. */
     fun registerUser(username: String, email: String, pass: String, nome: String): Long {
         val db = writableDatabase
         val values = ContentValues().apply {

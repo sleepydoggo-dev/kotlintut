@@ -37,6 +37,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isDarkMode = darkValue, language = lang, isReady = true) }
     }
 
+    /** Alterna tra il tema chiaro e scuro, salvando la preferenza dell'utente nel database locale delle preferenze. */
     fun toggleTheme(currentSystemDark: Boolean) {
         val currentIsDark = uiState.value.isDarkMode ?: currentSystemDark
         val newVal = !currentIsDark
@@ -44,6 +45,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isDarkMode = newVal) }
     }
 
+    /** Imposta la lingua globale dell'applicazione e ne persiste il valore nelle impostazioni locali. */
     fun setLanguage(lang: String) {
         if (uiState.value.language != lang) {
             prefs.edit().putString("LANGUAGE", lang).apply()

@@ -26,6 +26,7 @@ import com.example.kotlintut.ui.components.TotemTopBar
 import com.example.kotlintut.ui.theme.Locales
 import kotlinx.coroutines.delay
 
+/** Schermata del carrello che elenca i prodotti selezionati, permettendo di modificare le quantità, rimuovere elementi e procedere al checkout. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
@@ -110,6 +111,7 @@ fun CartScreen(
     }
 }
 
+/** Singola riga del carrello che visualizza i dettagli di un prodotto, incluse le personalizzazioni (rimozioni ed extra) e i controlli di quantità. */
 @Composable
 fun CartItemRow(item: CartItem, onQuantityChange: (CartItem, Int) -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -142,6 +144,7 @@ fun CartItemRow(item: CartItem, onQuantityChange: (CartItem, Int) -> Unit) {
     }
 }
 
+/** Schermata per la raccolta delle informazioni di contatto di un utente ospite (nome ed email) prima del pagamento. */
 @Composable
 fun GuestContactScreen(
     name: String,
@@ -201,6 +204,7 @@ fun GuestContactScreen(
     }
 }
 
+/** Schermata di pagamento che permette di scegliere il metodo di pagamento e inserire i dettagli della carta di credito. */
 @Composable
 fun PaymentScreen(
     total: Double,
@@ -297,6 +301,7 @@ fun PaymentScreen(
     }
 }
 
+/** Riga selezionabile per la scelta del metodo di pagamento con un pulsante radio. */
 @Composable
 fun PaymentMethodRow(label: String, isSelected: Boolean, onClick: () -> Unit) {
     Row(
@@ -308,6 +313,7 @@ fun PaymentMethodRow(label: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
+/** Schermata di monitoraggio dello stato dell'ordine con un indicatore di progresso circolare animato. */
 @Composable
 fun OrderTrackingScreen(
     language: String,
@@ -356,6 +362,7 @@ fun OrderTrackingScreen(
     }
 }
 
+/** Schermata che visualizza la cronologia degli ordini passati dell'utente con possibilità di rieseguire un ordine. */
 @Composable
 fun OrderHistoryScreen(
     orders: List<Order>,
@@ -413,6 +420,7 @@ fun OrderHistoryScreen(
     }
 }
 
+/** Riga della cronologia ordini che può essere espansa per visualizzare i dettagli dei prodotti inclusi e le loro personalizzazioni. */
 @Composable
 fun OrderRowWithDetails(order: Order, language: String, onReorder: () -> Unit) {
     val translate = remember(language) { { key: String -> Locales.getString(key, language) } }

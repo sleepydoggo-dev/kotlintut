@@ -43,6 +43,7 @@ sealed class Screen(val route: String) {
     object OrderHistory : Screen("order_history")
 }
 
+/** Gestisce la navigazione principale dell'applicazione, configurando il NavHost, le rotte e l'integrazione con i vari ViewModel per sincronizzare lo stato dell'UI. */
 @Composable
 fun AppNavigation(
     appViewModel: AppViewModel,

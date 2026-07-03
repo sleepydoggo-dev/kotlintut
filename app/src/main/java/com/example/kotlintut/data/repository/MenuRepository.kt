@@ -16,9 +16,7 @@ class MenuRepository(
     private val api: ApiService
 ) {
 
-    /**
-     * Recupera le categorie: prima le locali, poi aggiorna dal server.
-     */
+    /** Recupera la lista delle categorie principali, emettendo prima i dati locali e poi aggiornandoli dal server. */
     fun getCategories(): Flow<List<NetworkCategory>> = flow {
         // 1. Emetti dati locali subito
         val local = dbHelper.getAllCategoriesLocal()
@@ -44,9 +42,7 @@ class MenuRepository(
         }
     }
 
-    /**
-     * Recupera i prodotti di una categoria: prima locali, poi aggiorna dal server.
-     */
+    /** Recupera i prodotti di una specifica categoria, provando diverse chiavi di filtro API e aggiornando il database locale. */
     fun getProductsByCategory(categoryId: String): Flow<List<Product>> = flow {
         // 1. Emetti locali subito
         val local = dbHelper.getProductsByCategory(categoryId)

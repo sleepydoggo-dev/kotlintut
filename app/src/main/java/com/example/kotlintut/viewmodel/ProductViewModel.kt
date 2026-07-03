@@ -64,6 +64,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         loadFavorites()
     }
 
+    /** Carica le categorie principali all'avvio chiamando il repository. */
     private fun loadCategories() {
         viewModelScope.launch {
             repository.getCategories().collect { networkCategories ->
@@ -73,6 +74,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Aggiorna la lingua dell'applicazione e traduce i prodotti e i preferiti attualmente caricati. */
     fun updateLanguage(lang: String) {
         if (_uiState.value.language != lang) {
             _uiState.update { it.copy(language = lang) }
@@ -87,6 +89,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Recupera i prodotti preferiti dell'utente loggato dal database locale e li traduce. */
     fun loadFavorites() {
         val user = loggedUser
         val lang = _uiState.value.language
@@ -100,6 +103,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Gestisce la selezione di una categoria, navigando tra sottocategorie o caricando i prodotti finali. */
     fun selectCategory(category: NetworkCategory, onNavigateToProducts: () -> Unit) {
         val lang = _uiState.value.language
         
@@ -130,6 +134,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Torna al livello precedente nella gerarchia delle categorie, ripristinando la lista precedente dallo stack. */
     fun navigateBackCategory(): Boolean {
         if (!categoryHistory.isEmpty()) {
             val previousCategories = categoryHistory.pop()
@@ -139,10 +144,12 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         return false
     }
 
+    /** Verifica se l'utente si trova al livello principale (root) delle categorie. */
     fun isMainLevel(): Boolean {
         return categoryHistory.isEmpty()
     }
 
+    /** Seleziona un prodotto specifico e recupera i suoi ingredienti e le aggiunte extra dal database. */
     fun selectProduct(product: Product) {
         _uiState.update { it.copy(selectedProduct = product, isLoading = true) }
         viewModelScope.launch {
@@ -162,6 +169,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Aggiunge o rimuove un prodotto dalla lista dei preferiti dell'utente. */
     fun toggleFavorite(product: Product) {
         val user = loggedUser ?: return
         viewModelScope.launch {
@@ -174,22 +182,27 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Controlla se un prodotto con un determinato nome è tra i preferiti dell'utente. */
     fun isFavorite(productName: String): Boolean {
         return uiState.value.favorites.any { it.name == productName }
     }
 
+    /** Aggiorna la stringa di ricerca per filtrare la lista dei prodotti. */
     fun onSearchQueryChange(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
     }
 
+    /** Resetta la selezione del prodotto e svuota le liste di ingredienti e aggiunte. */
     fun clearProductSelection() {
         _uiState.update { it.copy(selectedProduct = null, productIngredients = emptyList(), productExtras = emptyList()) }
     }
 
+    /** Resetta la categoria selezionata e svuota la lista dei prodotti caricati. */
     fun clearCategorySelection() {
         _uiState.update { it.copy(selectedCategory = null, products = emptyList()) }
     }
 
+    /** Traduce il nome e la descrizione di un prodotto nella lingua specificata utilizzando le localizzazioni disponibili. */
     private fun translateProduct(product: Product, lang: String): Product {
         return product.copy(
             name = Locales.getString(product.name, lang),

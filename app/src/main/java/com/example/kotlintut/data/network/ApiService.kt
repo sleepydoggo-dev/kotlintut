@@ -8,15 +8,11 @@ import retrofit2.http.POST
  */
 interface ApiService {
 
-    /**
-     * Recupera tutte le categorie (chiamata POST come richiesto)
-     */
+    /** Recupera l'elenco completo delle categorie disponibili tramite una richiesta POST al server. */
     @POST("categorie")
     suspend fun getCategories(): ApiResponse<NetworkCategory>
 
-    /**
-     * Recupera i prodotti (chiamata POST filtrata per categoria nel body)
-     */
+    /** Invia una richiesta POST con filtri specifici per ottenere la lista dei prodotti dal server. */
     @POST("prodotti")
     suspend fun getProducts(@Body filter: Map<String, String>): ApiResponse<NetworkProduct>
 }

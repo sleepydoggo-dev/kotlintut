@@ -36,6 +36,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Effettua il login verificando le credenziali nel database locale e salvando la sessione nelle preferenze. */
     fun login(identifier: String, pass: String) {
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
@@ -55,6 +56,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Registra un nuovo utente nel database locale, verificando prima la disponibilità dell'username. */
     fun register(user: String, email: String, pass: String, nome: String) {
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
@@ -79,11 +81,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Disconnette l'utente attuale rimuovendo i dati della sessione dalle preferenze e resettando lo stato. */
     fun logout() {
         prefs.edit().remove("LOGGED_USERNAME").apply()
         _uiState.update { it.copy(loggedUser = null, isLoginSuccessful = false) }
     }
     
+    /** Rimuove eventuali messaggi di errore dallo stato di autenticazione. */
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
