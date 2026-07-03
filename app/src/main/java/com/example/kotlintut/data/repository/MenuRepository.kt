@@ -27,18 +27,20 @@ class MenuRepository(
         try {
             // 2. Chiamata POST al server
             val response = api.getCategories()
-            android.util.Log.d("MenuRepository", "API Response success: ${response.success}, data size: ${response.data.size}")
-            if (response.success) {
+            if (response != null && response.success) {
+                val data = response.data ?: emptyList()
+                android.util.Log.d("MenuRepository", "API Response success, data size: ${data.size}")
+                
                 // 3. Upsert nel database
-                dbHelper.upsertCategories(response.data)
+                dbHelper.upsertCategories(data)
+                
                 // 4. Emetti dati aggiornati
                 val updated = dbHelper.getAllCategoriesLocal()
                 android.util.Log.d("MenuRepository", "Local data after upsert size: ${updated.size}")
                 emit(updated)
             }
         } catch (e: Exception) {
-            android.util.Log.e("MenuRepository", "Error fetching categories", e)
-            // In caso di errore (es. offline), abbiamo già emesso i dati locali
+            android.util.Log.e("MenuRepository", "Error fetching categories: ${e.message}", e)
         }
     }
 

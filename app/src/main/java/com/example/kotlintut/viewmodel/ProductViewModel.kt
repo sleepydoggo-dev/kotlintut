@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.kotlintut.data.db.DatabaseHelper
 import com.example.kotlintut.data.model.Attribute
 import com.example.kotlintut.data.model.Product
+import com.example.kotlintut.data.network.NetworkCategory
 import com.example.kotlintut.data.network.RetrofitClient
 import com.example.kotlintut.data.repository.MenuRepository
 import com.example.kotlintut.ui.theme.Locales
@@ -22,11 +23,11 @@ import kotlinx.coroutines.launch
  */
 @Immutable
 data class ProductUiState(
-    val categories: List<String> = listOf("Panini", "Primi", "Secondi", "Bevande"),
+    val categories: List<NetworkCategory> = emptyList(),
     val products: List<Product> = emptyList(),
     val favorites: List<Product> = emptyList(),
     val searchQuery: String = "",
-    val selectedCategory: String? = null,
+    val selectedCategory: NetworkCategory? = null,
     val selectedProduct: Product? = null,
     val productAttributes: List<Attribute> = emptyList(),
     val isLoading: Boolean = false,
@@ -49,8 +50,8 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     private val _uiState = MutableStateFlow(ProductUiState())
     val uiState: StateFlow<ProductUiState> = _uiState.asStateFlow()
 
-    private val _categoryNames = MutableStateFlow<List<String>>(emptyList())
-    val categoryNames: StateFlow<List<String>> = _categoryNames.asStateFlow()
+    private val _categories = MutableStateFlow<List<NetworkCategory>>(emptyList())
+    val categories: StateFlow<List<NetworkCategory>> = _categories.asStateFlow()
 
     init {
         // Carica le categorie all'avvio
@@ -61,9 +62,8 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     private fun loadCategories() {
         viewModelScope.launch {
             repository.getCategories().collect { networkCategories ->
-                val names = networkCategories.map { it.name }
-                _categoryNames.value = names
-                _uiState.update { it.copy(categories = names) }
+                _categories.value = networkCategories
+                _uiState.update { it.copy(categories = networkCategories) }
             }
         }
     }
@@ -95,13 +95,13 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun selectCategory(category: String) {
+    fun selectCategory(category: com.example.kotlintut.data.network.NetworkCategory) {
         val lang = _uiState.value.language
         _uiState.update { it.copy(selectedCategory = category, isLoading = true) }
         viewModelScope.launch {
             try {
                 // Scarica i prodotti solo quando viene cliccata la categoria
-                repository.getProductsByCategory(category).collect { products ->
+                repository.getProductsByCategory(category.id).collect { products ->
                     val translated = products.map { translateProduct(it, lang) }
                     _uiState.update { it.copy(products = translated, isLoading = false) }
                 }

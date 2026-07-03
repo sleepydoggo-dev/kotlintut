@@ -5,9 +5,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-/**
- * Singleton per configurare e fornire l'istanza di Retrofit
- */
+
 object RetrofitClient {
     private const val BASE_URL = "https://dolcemare.solteconline.it/api/v1/"
 

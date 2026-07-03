@@ -22,6 +22,7 @@ import com.example.kotlintut.ui.components.DrawerHeader
 import com.example.kotlintut.ui.components.DrawerItem
 import com.example.kotlintut.ui.screens.*
 import com.example.kotlintut.viewmodel.*
+import com.example.kotlintut.data.network.NetworkCategory
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
@@ -195,7 +196,7 @@ fun AppNavigation(
                     cartCount = cartState.itemCount,
                     onCategoryClick = { category ->
                         productViewModel.selectCategory(category)
-                        navController.navigate(Screen.Products.createRoute(category))
+                        navController.navigate(Screen.Products.createRoute(category.id))
                     },
                     onMenuClick = { scope.launch { drawerState.open() } },
                     onCartClick = { navController.navigate(Screen.Cart.route) },
@@ -206,10 +207,12 @@ fun AppNavigation(
                 route = Screen.Products.route,
                 arguments = listOf(navArgument("category") { type = NavType.StringType })
             ) { backStackEntry ->
-                val category = backStackEntry.arguments?.getString("category") ?: ""
+                val categoryId = backStackEntry.arguments?.getString("category") ?: ""
+                val categoryName = productState.categories.find { it.id == categoryId }?.name ?: categoryId
+                
                 ProductsScreen(
-                    category = category,
-                    categoryLabel = appState.getString(category),
+                    category = categoryId,
+                    categoryLabel = appState.getString(categoryName),
                     products = productState.filteredProducts,
                     searchQuery = productState.searchQuery,
                     cartCount = cartState.itemCount,

@@ -170,32 +170,50 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
     }
 
     private fun insertInitialProducts(db: SQLiteDatabase) {
-        val products = listOf(
-            Triple("prod_hamburger", 7.50, "desc_hamburger" to "Panini"),
-            Triple("prod_cheeseburger", 8.00, "desc_cheeseburger" to "Panini"),
-            Triple("prod_pizza", 12.00, "desc_pizza" to "Primi"),
-            Triple("prod_pasta_al_pesto", 8.50, "desc_pasta_al_pesto" to "Primi"),
-            Triple("prod_pasta", 6.00, "desc_pasta" to "Primi"),
-            Triple("prod_lasagna", 9.00, "desc_lasagna" to "Primi"),
-            Triple("prod_cotoletta", 10.00, "desc_cotoletta" to "Secondi"),
-            Triple("prod_grigliata", 15.00, "desc_grigliata" to "Secondi"),
-            Triple("prod_acqua", 1.50, "desc_acqua" to "Bevande"),
-            Triple("prod_coca", 2.50, "desc_coca" to "Bevande"),
-            Triple("prod_fanta", 2.50, "desc_fanta" to "Bevande"),
-            Triple("prod_sprite", 2.50, "desc_sprite" to "Bevande"),
-            Triple("prod_fanta_zero", 2.50, "desc_fanta_zero" to "Bevande"),
-            Triple("prod_birra", 3.00, "desc_birra" to "Bevande"),
-            Triple("prod_chinotto", 3.00, "desc_chinotto" to "Bevande"),
-            Triple("prod_lemon_soda", 3.00, "desc_lemon_soda" to "Bevande"),
-            Triple("prod_oran_soda", 3.00, "desc_oran_soda" to "Bevande"),
-            Triple("prod_water", 2.00, "desc_water" to "Bevande"),
-            Triple("prod_the_pesca", 3.00, "desc_the_pesca" to "Bevande"),
-            Triple("prod_the_limone", 3.00, "desc_the_limone" to "Bevande")
+        // Inserimento categorie iniziali per evitare UI vuota al primo avvio offline
+        val initialCategories = listOf(
+            Triple("cat_panini", "Panini", 1),
+            Triple("cat_primi", "Primi", 2),
+            Triple("cat_secondi", "Secondi", 3),
+            Triple("cat_bevande", "Bevande", 4)
         )
 
-        products.forEach { (name, price, descCat) ->
-            val (desc, cat) = descCat
-            db.execSQL("INSERT INTO $TABLE_PRODUCTS ($COLUMN_PROD_NAME, $COLUMN_PROD_PRICE, $COLUMN_PROD_DESC, $COLUMN_PROD_CAT) VALUES ('$name', $price, '$desc', '$cat')")
+        initialCategories.forEach { (id, name, pos) ->
+            val values = ContentValues().apply {
+                put(COLUMN_CAT_REMOTE_ID, id)
+                put(COLUMN_CAT_NAME, name)
+                put("posizionamento", pos)
+                put("visibile", 1)
+            }
+            db.insertWithOnConflict(TABLE_CATEGORIES, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        }
+
+        val products = listOf(
+            Triple("prod_hamburger", 7.50, "cat_panini"),
+            Triple("prod_cheeseburger", 8.00, "cat_panini"),
+            Triple("prod_pizza", 12.00, "cat_primi"),
+            Triple("prod_pasta_al_pesto", 8.50, "cat_primi"),
+            Triple("prod_pasta", 6.00, "cat_primi"),
+            Triple("prod_lasagna", 9.00, "cat_primi"),
+            Triple("prod_cotoletta", 10.00, "cat_secondi"),
+            Triple("prod_grigliata", 15.00, "cat_secondi"),
+            Triple("prod_acqua", 1.50, "cat_bevande"),
+            Triple("prod_coca", 2.50, "cat_bevande"),
+            Triple("prod_fanta", 2.50, "cat_bevande"),
+            Triple("prod_sprite", 2.50, "cat_bevande"),
+            Triple("prod_birra", 3.00, "cat_bevande")
+        )
+
+        products.forEach { (name, price, catId) ->
+            val values = ContentValues().apply {
+                put(COLUMN_PROD_REMOTE_ID, name) // Usiamo il nome come remote_id per i mock
+                put(COLUMN_PROD_NAME, name)
+                put(COLUMN_PROD_PRICE, price)
+                put(COLUMN_PROD_DESC, "Delizioso $name")
+                put(COLUMN_PROD_CAT, catId)
+                put(COLUMN_PROD_AVAILABLE, 1)
+            }
+            db.insertWithOnConflict(TABLE_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
         }
 
         db.execSQL("INSERT INTO $TABLE_ATTRIBUTES ($COLUMN_ATTR_PROD_ID, $COLUMN_ATTR_NAME, $COLUMN_ATTR_PRICE) VALUES (1, 'Cipolla extra', 0.50)")
@@ -287,14 +305,13 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         db.query(TABLE_PRODUCTS, null, "$COLUMN_PROD_CAT=?", arrayOf(category), null, null, null).use { cursor ->
             if (cursor.moveToFirst()) {
                 do {
+                    val remoteId = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROD_REMOTE_ID))
                     val name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROD_NAME))
                     val price = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_PROD_PRICE))
                     val desc = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROD_DESC))
                     val imgUrl = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROD_IMG_URL)) ?: ""
                     
-                    // Se imgUrl è un URL (inizia con http), lo passiamo come imageKey
-                    // Altrimenti usiamo la vecchia logica di mapping se necessario
-                    list.add(Product(name, price, desc, imgUrl, category))
+                    list.add(Product(remoteId, name, price, desc, imgUrl, category))
                 } while (cursor.moveToNext())
             }
         }
@@ -329,10 +346,11 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
             if (cursor.moveToFirst()) {
                 do {
                     list.add(Product(
-                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FAV_PROD_NAME)),
-                        cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_FAV_PROD_PRICE)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FAV_PROD_DESC)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FAV_PROD_IMG))
+                        id = "", // Favorites table doesn't have remote_id yet, using name as fallback if needed or empty
+                        name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FAV_PROD_NAME)),
+                        price = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_FAV_PROD_PRICE)),
+                        description = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FAV_PROD_DESC)),
+                        imageKey = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FAV_PROD_IMG))
                     ))
                 } while (cursor.moveToNext())
             }
@@ -385,10 +403,11 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
             if (cursor.moveToFirst()) {
                 do {
                     val product = Product(
-                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_NOME)),
-                        cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_CART_PREZZO)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_DESC)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_IMG))
+                        id = "",
+                        name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_NOME)),
+                        price = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_CART_PREZZO)),
+                        description = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_DESC)),
+                        imageKey = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_IMG))
                     )
                     list.add(CartItem(product, cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_CART_QTY))))
                 } while (cursor.moveToNext())
@@ -443,9 +462,11 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
             if (cursor.moveToFirst()) {
                 do {
                     val product = Product(
-                        cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ITEM_NAME)),
-                        cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_ITEM_PRICE)),
-                        "", ""
+                        id = "",
+                        name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ITEM_NAME)),
+                        price = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_ITEM_PRICE)),
+                        description = "", 
+                        imageKey = ""
                     )
                     items.add(CartItem(product, cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ITEM_QTY))))
                 } while (cursor.moveToNext())

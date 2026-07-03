@@ -44,9 +44,9 @@ import com.example.kotlintut.ui.components.TotemTopBar
 @Composable
 fun CategoriesScreen(
     title: String,
-    categories: List<String>,
+    categories: List<com.example.kotlintut.data.network.NetworkCategory>,
     cartCount: Int,
-    onCategoryClick: (String) -> Unit,
+    onCategoryClick: (com.example.kotlintut.data.network.NetworkCategory) -> Unit,
     onMenuClick: () -> Unit,
     onCartClick: () -> Unit,
     translate: (String) -> String
@@ -69,8 +69,8 @@ fun CategoriesScreen(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
-                itemsIndexed(categories, key = { _, cat -> cat }) { index, category ->
-                    val label = remember(category, translate) { translate(category) }
+                itemsIndexed(categories, key = { _, cat -> cat.id }) { index, category ->
+                    val label = remember(category.name, translate) { translate(category.name) }
                     
                     var visible by remember { mutableStateOf(false) }
                     LaunchedEffect(Unit) { visible = true }
@@ -80,7 +80,7 @@ fun CategoriesScreen(
                         enter = fadeIn(animationSpec = tween(300, delayMillis = index * 50)) +
                                 scaleIn(initialScale = 0.8f, animationSpec = tween(300, delayMillis = index * 50))
                     ) {
-                        CategoryCard(category = category, label = label) { onCategoryClick(category) }
+                        CategoryCard(category = category.name, label = label) { onCategoryClick(category) }
                     }
                 }
             }
@@ -144,9 +144,9 @@ fun ProductsScreen(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
-                        itemsIndexed(targetProducts, key = { _, prod -> prod.name }) { index, product ->
-                            var visible by remember(product.name) { mutableStateOf(false) }
-                            LaunchedEffect(product.name) { visible = true }
+                        itemsIndexed(targetProducts, key = { _, prod -> prod.id.ifEmpty { prod.name } }) { index, product ->
+                            var visible by remember(product.id.ifEmpty { product.name }) { mutableStateOf(false) }
+                            LaunchedEffect(product.id.ifEmpty { product.name }) { visible = true }
 
                             AnimatedVisibility(
                                 visible = visible,

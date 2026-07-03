@@ -15,7 +15,7 @@ data class ApiResponse<T>(
  */
 data class NetworkCategory(
     @SerializedName("_id") val id: String,
-    @SerializedName("categoriaPadre") val parentCategory: String?,
+    @SerializedName("categoriaPadre") val parentCategory: com.google.gson.JsonElement?,
     @SerializedName("posizionamento") val position: Int,
     @SerializedName("categoria") val name: String,
     @SerializedName("visibile") val isVisible: Boolean
