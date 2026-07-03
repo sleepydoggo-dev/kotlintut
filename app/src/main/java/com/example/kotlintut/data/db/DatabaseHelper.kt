@@ -12,7 +12,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
 
     companion object {
         private const val DATABASE_NAME = "RistoranteTotem_Compose.db"
-        private const val DATABASE_VERSION = 4
+        private const val DATABASE_VERSION = 5
 
         const val TABLE_USERS = "utenti"
         const val COLUMN_USER_ID = "id"
@@ -61,11 +61,17 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         const val COLUMN_ITEM_PRICE = "prodotto_prezzo"
         const val COLUMN_ITEM_QTY = "quantita"
 
-        const val TABLE_ATTRIBUTES = "attributi"
-        const val COLUMN_ATTR_ID = "id"
-        const val COLUMN_ATTR_PROD_ID = "prodotto_id"
-        const val COLUMN_ATTR_NAME = "nome"
-        const val COLUMN_ATTR_PRICE = "prezzo_extra"
+        const val TABLE_INGREDIENTS = "ingredienti"
+        const val COLUMN_ING_ID = "id_ingrediente"
+        const val COLUMN_ING_PROD_ID = "product_id"
+        const val COLUMN_ING_NAME = "nome"
+        const val COLUMN_ING_REMOVABLE = "eliminabile"
+
+        const val TABLE_EXTRAS = "aggiunte"
+        const val COLUMN_EXT_ID = "id_aggiunta"
+        const val COLUMN_EXT_PROD_ID = "product_id"
+        const val COLUMN_EXT_NAME = "nome"
+        const val COLUMN_EXT_PRICE = "prezzo"
 
         const val TABLE_FAVORITES = "preferiti"
         const val COLUMN_FAV_ID = "id"
@@ -157,6 +163,26 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
             )
         """.trimIndent())
 
+        db.execSQL("""
+            CREATE TABLE $TABLE_INGREDIENTS (
+                $COLUMN_ING_ID TEXT PRIMARY KEY,
+                $COLUMN_ING_PROD_ID TEXT,
+                $COLUMN_ING_NAME TEXT,
+                $COLUMN_ING_REMOVABLE TEXT,
+                FOREIGN KEY($COLUMN_ING_PROD_ID) REFERENCES $TABLE_PRODUCTS($COLUMN_PROD_REMOTE_ID)
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE $TABLE_EXTRAS (
+                $COLUMN_EXT_ID TEXT PRIMARY KEY,
+                $COLUMN_EXT_PROD_ID TEXT,
+                $COLUMN_EXT_NAME TEXT,
+                $COLUMN_EXT_PRICE REAL,
+                FOREIGN KEY($COLUMN_EXT_PROD_ID) REFERENCES $TABLE_PRODUCTS($COLUMN_PROD_REMOTE_ID)
+            )
+        """.trimIndent())
+
         // Rimosso insertInitialProducts(db) per pulizia dati mock
     }
 
@@ -168,7 +194,8 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         db.execSQL("DROP TABLE IF EXISTS $TABLE_ORDERS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_ORDER_ITEMS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_FAVORITES")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_ATTRIBUTES")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_INGREDIENTS")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_EXTRAS")
         onCreate(db)
     }
 
@@ -212,15 +239,33 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                     put(COLUMN_PROD_NAME, prod.name)
                     put(COLUMN_PROD_PRICE, prod.price)
                     put(COLUMN_PROD_DESC, "") 
-                    // Se il prodotto non ha l'ID della categoria richiesta nella sua lista, 
-                    // lo associamo comunque per questa visualizzazione, o usiamo il primo disponibile.
-                    // Molte API restituiscono prodotti filtrati, quindi l'associazione è implicita.
                     put(COLUMN_PROD_CAT, requestedCategoryId)
                     put(COLUMN_PROD_IMG_URL, prod.imageUrl)
                     put(COLUMN_PROD_AVAILABLE, if (prod.isAvailable) 1 else 0)
                 }
-                val rowId = db.insertWithOnConflict(TABLE_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
-                android.util.Log.d("DatabaseHelper", "Upserted product ${prod.name} for cat $requestedCategoryId, rowId: $rowId")
+                db.insertWithOnConflict(TABLE_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+
+                // Upsert Ingredienti
+                prod.ingredients?.forEach { ing ->
+                    val ingValues = ContentValues().apply {
+                        put(COLUMN_ING_ID, "${prod.id}_${ing.id}") // Chiave composta per sicurezza
+                        put(COLUMN_ING_PROD_ID, prod.id)
+                        put(COLUMN_ING_NAME, ing.name)
+                        put(COLUMN_ING_REMOVABLE, ing.isRemovable)
+                    }
+                    db.insertWithOnConflict(TABLE_INGREDIENTS, null, ingValues, SQLiteDatabase.CONFLICT_REPLACE)
+                }
+
+                // Upsert Aggiunte
+                prod.extras?.forEach { ext ->
+                    val extValues = ContentValues().apply {
+                        put(COLUMN_EXT_ID, "${prod.id}_${ext.id}")
+                        put(COLUMN_EXT_PROD_ID, prod.id)
+                        put(COLUMN_EXT_NAME, ext.name)
+                        put(COLUMN_EXT_PRICE, ext.price)
+                    }
+                    db.insertWithOnConflict(TABLE_EXTRAS, null, extValues, SQLiteDatabase.CONFLICT_REPLACE)
+                }
             }
             db.setTransactionSuccessful()
         } catch (e: Exception) {
@@ -290,21 +335,34 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         return list
     }
 
-    fun getAttributesByProduct(productName: String): List<Attribute> {
-        val list = mutableListOf<Attribute>()
+    fun getIngredientsByProduct(productId: String): List<com.example.kotlintut.data.network.NetworkIngredient> {
+        val list = mutableListOf<com.example.kotlintut.data.network.NetworkIngredient>()
         val db = readableDatabase
-        val query = """
-            SELECT a.$COLUMN_ATTR_NAME, a.$COLUMN_ATTR_PRICE
-            FROM $TABLE_ATTRIBUTES a
-            JOIN $TABLE_PRODUCTS p ON a.$COLUMN_ATTR_PROD_ID = p.$COLUMN_PROD_ID
-            WHERE ? LIKE '%' || REPLACE(p.$COLUMN_PROD_NAME, 'prod_', '') || '%'
-            OR REPLACE(p.$COLUMN_PROD_NAME, 'prod_', '') LIKE '%' || ? || '%'
-        """.trimIndent()
-
-        db.rawQuery(query, arrayOf(productName, productName)).use { cursor ->
+        db.query(TABLE_INGREDIENTS, null, "$COLUMN_ING_PROD_ID=?", arrayOf(productId), null, null, null).use { cursor ->
             if (cursor.moveToFirst()) {
                 do {
-                    list.add(Attribute(cursor.getString(0), cursor.getDouble(1)))
+                    list.add(com.example.kotlintut.data.network.NetworkIngredient(
+                        id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ING_ID)),
+                        name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ING_NAME)),
+                        isRemovable = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ING_REMOVABLE))
+                    ))
+                } while (cursor.moveToNext())
+            }
+        }
+        return list
+    }
+
+    fun getExtrasByProduct(productId: String): List<com.example.kotlintut.data.network.NetworkExtra> {
+        val list = mutableListOf<com.example.kotlintut.data.network.NetworkExtra>()
+        val db = readableDatabase
+        db.query(TABLE_EXTRAS, null, "$COLUMN_EXT_PROD_ID=?", arrayOf(productId), null, null, null).use { cursor ->
+            if (cursor.moveToFirst()) {
+                do {
+                    list.add(com.example.kotlintut.data.network.NetworkExtra(
+                        id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXT_ID)),
+                        name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXT_NAME)),
+                        price = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_EXT_PRICE))
+                    ))
                 } while (cursor.moveToNext())
             }
         }

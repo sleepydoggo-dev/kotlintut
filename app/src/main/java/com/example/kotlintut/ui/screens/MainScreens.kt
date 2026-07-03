@@ -34,8 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.example.kotlintut.data.model.Attribute
 import com.example.kotlintut.data.model.Product
+import com.example.kotlintut.data.network.NetworkExtra
+import com.example.kotlintut.data.network.NetworkIngredient
 import com.example.kotlintut.ui.components.TotemTopBar
 
 /**
@@ -175,19 +176,21 @@ fun ProductsScreen(
 @Composable
 fun ProductDetailScreen(
     product: Product,
-    attributes: List<Attribute>,
+    ingredients: List<NetworkIngredient>,
+    extras: List<NetworkExtra>,
     isFavorite: Boolean,
     cartCount: Int,
     detailsLabel: String,
     customizeLabel: String,
     addLabel: String,
     onFavoriteToggle: () -> Unit,
-    onAddToCart: (Int, List<Attribute>) -> Unit,
+    onAddToCart: (Int, List<NetworkIngredient>, List<NetworkExtra>) -> Unit,
     onCartClick: () -> Unit,
     onBack: () -> Unit
 ) {
     var quantity by remember { mutableIntStateOf(1) }
-    val selectedAttributes = remember { mutableStateListOf<Attribute>() }
+    val removedIngredients = remember { mutableStateListOf<NetworkIngredient>() }
+    val addedExtras = remember { mutableStateListOf<NetworkExtra>() }
 
     Scaffold(
         modifier = Modifier.pointerInput(Unit) {},
@@ -205,11 +208,11 @@ fun ProductDetailScreen(
             ProductPurchaseBar(
                 basePrice = product.price,
                 quantity = quantity,
-                selectedAttributes = selectedAttributes,
+                addedExtras = addedExtras,
                 buttonLabel = addLabel,
                 onQuantityIncrease = { quantity++ },
                 onQuantityDecrease = { if (quantity > 1) quantity-- },
-                onAddToCart = { onAddToCart(quantity, selectedAttributes.toList()) }
+                onAddToCart = { onAddToCart(quantity, removedIngredients.toList(), addedExtras.toList()) }
             )
         }
     ) { padding ->
@@ -232,14 +235,26 @@ fun ProductDetailScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            if (attributes.isNotEmpty()) {
-                AttributeList(
-                    attributes = attributes,
-                    selectedAttributes = selectedAttributes,
-                    customizeLabel = customizeLabel,
-                    onAttributeToggle = { attr ->
-                        if (selectedAttributes.contains(attr)) selectedAttributes.remove(attr)
-                        else selectedAttributes.add(attr)
+            if (ingredients.isNotEmpty()) {
+                IngredientsList(
+                    ingredients = ingredients,
+                    removedIngredients = removedIngredients,
+                    onIngredientToggle = { ing ->
+                        if (removedIngredients.contains(ing)) removedIngredients.remove(ing)
+                        else removedIngredients.add(ing)
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (extras.isNotEmpty()) {
+                ExtrasList(
+                    extras = extras,
+                    addedExtras = addedExtras,
+                    onExtraToggle = { ext ->
+                        if (addedExtras.contains(ext)) addedExtras.remove(ext)
+                        else addedExtras.add(ext)
                     }
                 )
             }
@@ -384,7 +399,7 @@ fun ProductCard(product: Product, onClick: () -> Unit) {
 private fun ProductPurchaseBar(
     basePrice: Double,
     quantity: Int,
-    selectedAttributes: List<Attribute>,
+    addedExtras: List<NetworkExtra>,
     buttonLabel: String,
     onQuantityIncrease: () -> Unit,
     onQuantityDecrease: () -> Unit,
@@ -407,7 +422,7 @@ private fun ProductPurchaseBar(
                 onClick = onAddToCart,
                 modifier = Modifier.height(55.dp)
             ) {
-                val totalPrice = (basePrice + selectedAttributes.sumOf { it.extraPrice }) * quantity
+                val totalPrice = (basePrice + addedExtras.sumOf { it.price }) * quantity
                 Text("$buttonLabel  € ${String.format("%.2f", totalPrice)}")
             }
         }
@@ -469,25 +484,61 @@ private fun ProductInfo(name: String, description: String) {
 }
 
 @Composable
-private fun AttributeList(
-    attributes: List<Attribute>,
-    selectedAttributes: List<Attribute>,
-    customizeLabel: String,
-    onAttributeToggle: (Attribute) -> Unit
+private fun IngredientsList(
+    ingredients: List<NetworkIngredient>,
+    removedIngredients: List<NetworkIngredient>,
+    onIngredientToggle: (NetworkIngredient) -> Unit
 ) {
     Column {
-        Text(customizeLabel, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text("Ingredienti", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
-        attributes.forEach { attr ->
+        ingredients.forEach { ing ->
+            val isRemovable = ing.isRemovable == "si"
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().clickable { onAttributeToggle(attr) }
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = isRemovable) { onIngredientToggle(ing) }
             ) {
                 Checkbox(
-                    checked = selectedAttributes.contains(attr),
-                    onCheckedChange = { onAttributeToggle(attr) }
+                    checked = !removedIngredients.contains(ing),
+                    onCheckedChange = { if (isRemovable) onIngredientToggle(ing) },
+                    enabled = isRemovable
                 )
-                Text(attr.toString(), modifier = Modifier.padding(start = 8.dp))
+                Text(
+                    text = ing.name,
+                    modifier = Modifier.padding(start = 8.dp),
+                    color = if (isRemovable) Color.Unspecified else Color.Gray
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExtrasList(
+    extras: List<NetworkExtra>,
+    addedExtras: List<NetworkExtra>,
+    onExtraToggle: (NetworkExtra) -> Unit
+) {
+    Column {
+        Text("Aggiunte Extra", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        extras.forEach { ext ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExtraToggle(ext) }
+            ) {
+                Checkbox(
+                    checked = addedExtras.contains(ext),
+                    onCheckedChange = { onExtraToggle(ext) }
+                )
+                Text(
+                    text = "${ext.name} (+ € ${String.format("%.2f", ext.price)})",
+                    modifier = Modifier.padding(start = 8.dp)
+                )
             }
         }
     }

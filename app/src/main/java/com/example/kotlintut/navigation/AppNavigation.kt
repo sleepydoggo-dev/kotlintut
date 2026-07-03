@@ -234,15 +234,16 @@ fun AppNavigation(
                 productState.selectedProduct?.let { product ->
                     ProductDetailScreen(
                         product = product,
-                        attributes = productState.productAttributes,
+                        ingredients = productState.productIngredients,
+                        extras = productState.productExtras,
                         isFavorite = productViewModel.isFavorite(product.name),
                         cartCount = cartState.itemCount,
                         detailsLabel = appState.getString("details"),
                         customizeLabel = appState.getString("customize_order"),
                         addLabel = appState.getString("add_to_cart"),
                         onFavoriteToggle = { productViewModel.toggleFavorite(product) },
-                        onAddToCart = { qty, attrs ->
-                            cartViewModel.addToCart(authState.loggedUser, product, qty, attrs)
+                        onAddToCart = { qty, removedIngs, addedExts ->
+                            cartViewModel.addToCart(authState.loggedUser, product, qty, removedIngs, addedExts)
                         },
                         onCartClick = { navController.navigate(Screen.Cart.route) },
                         onBack = { navController.popBackStack() }

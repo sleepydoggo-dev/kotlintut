@@ -71,7 +71,7 @@ fun CartScreen(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
-                items(items, key = { it.product.name + it.selectedAttributes.hashCode() }) { item ->
+                items(items, key = { it.product.name + it.removedIngredients.hashCode() + it.addedExtras.hashCode() }) { item ->
                     val dismissState = rememberSwipeToDismissBoxState(
                         confirmValueChange = {
                             if (it == SwipeToDismissBoxValue.EndToStart) {
@@ -116,9 +116,17 @@ fun CartItemRow(item: CartItem, onQuantityChange: (CartItem, Int) -> Unit) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.product.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                if (item.selectedAttributes.isNotEmpty()) {
-                    Text(item.selectedAttributes.joinToString { it.name }, fontSize = 12.sp, color = Color.Gray)
+                
+                // Ingredienti rimossi
+                item.removedIngredients.forEach { ing ->
+                    Text("Senza: ${ing.name}", fontSize = 12.sp, color = Color.Red)
                 }
+                
+                // Aggiunte extra
+                item.addedExtras.forEach { ext ->
+                    Text("Extra: ${ext.name} (+ € ${String.format("%.2f", ext.price)})", fontSize = 12.sp, color = Color(0xFF4CAF50))
+                }
+                
                 Text("€ ${String.format("%.2f", item.getTotalPrice())}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -425,9 +433,17 @@ fun OrderRowWithDetails(order: Order, language: String, onReorder: () -> Unit) {
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 16.dp)) {
                     order.items.forEach { item ->
-                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("${item.quantity}x ${item.product.name}", fontSize = 14.sp)
-                            Text("€ ${String.format("%.2f", item.getTotalPrice())}", fontSize = 14.sp)
+                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("${item.quantity}x ${item.product.name}", fontSize = 14.sp)
+                                Text("€ ${String.format("%.2f", item.getTotalPrice())}", fontSize = 14.sp)
+                            }
+                            item.removedIngredients.forEach { ing ->
+                                Text("  - Senza: ${ing.name}", fontSize = 12.sp, color = Color.Red)
+                            }
+                            item.addedExtras.forEach { ext ->
+                                Text("  + Extra: ${ext.name}", fontSize = 12.sp, color = Color(0xFF4CAF50))
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))

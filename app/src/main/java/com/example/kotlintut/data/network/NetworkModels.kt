@@ -22,6 +22,24 @@ data class NetworkCategory(
 )
 
 /**
+ * Modello ingrediente base
+ */
+data class NetworkIngredient(
+    @SerializedName("idIngrediente") val id: String,
+    @SerializedName("nome") val name: String,
+    @SerializedName("eliminabile") val isRemovable: String // "si" o "no"
+)
+
+/**
+ * Modello aggiunta extra
+ */
+data class NetworkExtra(
+    @SerializedName("idIngrediente") val id: String,
+    @SerializedName("nome") val name: String,
+    @SerializedName("prezzo") val price: Double
+)
+
+/**
  * Modello prodotto ricevuto dal server
  */
 data class NetworkProduct(
@@ -30,5 +48,7 @@ data class NetworkProduct(
     @SerializedName("prezzo") val price: Double,
     @SerializedName("categorie") val categories: List<String>,
     @SerializedName("immagine") val imageUrl: String,
-    @SerializedName("disponibile") val isAvailable: Boolean
+    @SerializedName("disponibile") val isAvailable: Boolean,
+    @SerializedName("ingredienti") val ingredients: List<NetworkIngredient>?,
+    @SerializedName("aggiunte") val extras: List<NetworkExtra>?
 )

@@ -1,15 +1,16 @@
 package com.example.kotlintut.data.model
 
-import androidx.compose.runtime.Immutable
+import com.example.kotlintut.data.network.NetworkExtra
+import com.example.kotlintut.data.network.NetworkIngredient
 
-@Immutable
 data class CartItem(
     val product: Product,
     val quantity: Int,
-    val selectedAttributes: List<Attribute> = emptyList()
+    val removedIngredients: List<NetworkIngredient> = emptyList(),
+    val addedExtras: List<NetworkExtra> = emptyList()
 ) {
     fun getTotalPrice(): Double {
-        val attrExtra = selectedAttributes.sumOf { it.extraPrice }
-        return (product.price + attrExtra) * quantity
+        val extrasTotal = addedExtras.sumOf { it.price }
+        return (product.price + extrasTotal) * quantity
     }
 }

@@ -8,6 +8,8 @@ import com.example.kotlintut.data.db.DatabaseHelper
 import com.example.kotlintut.data.model.Attribute
 import com.example.kotlintut.data.model.Product
 import com.example.kotlintut.data.network.NetworkCategory
+import com.example.kotlintut.data.network.NetworkExtra
+import com.example.kotlintut.data.network.NetworkIngredient
 import com.example.kotlintut.data.network.RetrofitClient
 import com.example.kotlintut.data.repository.MenuRepository
 import com.example.kotlintut.ui.theme.Locales
@@ -29,7 +31,8 @@ data class ProductUiState(
     val searchQuery: String = "",
     val selectedCategory: NetworkCategory? = null,
     val selectedProduct: Product? = null,
-    val productAttributes: List<Attribute> = emptyList(),
+    val productIngredients: List<NetworkIngredient> = emptyList(),
+    val productExtras: List<NetworkExtra> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val language: String = "IT"
@@ -144,8 +147,15 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         _uiState.update { it.copy(selectedProduct = product, isLoading = true) }
         viewModelScope.launch {
             try {
-                val attributes = dbHelper.getAttributesByProduct(product.name)
-                _uiState.update { it.copy(productAttributes = attributes, isLoading = false) }
+                val ingredients = dbHelper.getIngredientsByProduct(product.id)
+                val extras = dbHelper.getExtrasByProduct(product.id)
+                _uiState.update { 
+                    it.copy(
+                        productIngredients = ingredients,
+                        productExtras = extras,
+                        isLoading = false
+                    ) 
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = e.message, isLoading = false) }
             }
@@ -173,7 +183,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun clearProductSelection() {
-        _uiState.update { it.copy(selectedProduct = null, productAttributes = emptyList()) }
+        _uiState.update { it.copy(selectedProduct = null, productIngredients = emptyList(), productExtras = emptyList()) }
     }
 
     fun clearCategorySelection() {

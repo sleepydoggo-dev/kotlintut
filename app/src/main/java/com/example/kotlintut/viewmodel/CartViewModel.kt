@@ -5,10 +5,11 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.kotlintut.data.db.DatabaseHelper
-import com.example.kotlintut.data.model.Attribute
 import com.example.kotlintut.data.model.CartItem
 import com.example.kotlintut.data.model.Order
 import com.example.kotlintut.data.model.Product
+import com.example.kotlintut.data.network.NetworkExtra
+import com.example.kotlintut.data.network.NetworkIngredient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,17 +50,19 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addToCart(username: String?, product: Product, quantity: Int, attributes: List<Attribute>) {
+    fun addToCart(username: String?, product: Product, quantity: Int, removedIngredients: List<NetworkIngredient>, addedExtras: List<NetworkExtra>) {
         val currentItems = _uiState.value.items.toMutableList()
         val existingIndex = currentItems.indexOfFirst { 
-            it.product.name == product.name && it.selectedAttributes == attributes 
+            it.product.name == product.name && 
+            it.removedIngredients == removedIngredients && 
+            it.addedExtras == addedExtras
         }
 
         if (existingIndex != -1) {
             val existingItem = currentItems[existingIndex]
             currentItems[existingIndex] = existingItem.copy(quantity = existingItem.quantity + quantity)
         } else {
-            currentItems.add(CartItem(product, quantity, attributes))
+            currentItems.add(CartItem(product, quantity, removedIngredients, addedExtras))
         }
 
         _uiState.update { it.copy(items = currentItems) }
@@ -130,7 +133,9 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         val currentItems = _uiState.value.items.toMutableList()
         orderItems.forEach { newItem ->
             val existingIndex = currentItems.indexOfFirst { 
-                it.product.name == newItem.product.name && it.selectedAttributes == newItem.selectedAttributes 
+                it.product.name == newItem.product.name && 
+                it.removedIngredients == newItem.removedIngredients && 
+                it.addedExtras == newItem.addedExtras
             }
             if (existingIndex != -1) {
                 val existingItem = currentItems[existingIndex]
