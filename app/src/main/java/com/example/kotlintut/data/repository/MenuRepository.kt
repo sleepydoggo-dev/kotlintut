@@ -49,19 +49,43 @@ class MenuRepository(
      */
     fun getProductsByCategory(categoryId: String): Flow<List<Product>> = flow {
         // 1. Emetti locali subito
-        emit(dbHelper.getProductsByCategory(categoryId))
+        val local = dbHelper.getProductsByCategory(categoryId)
+        android.util.Log.d("MenuRepository", "Local products check for cat $categoryId: ${local.size}")
+        emit(local)
 
         try {
-            // 2. Chiamata POST con filtro categoria
-            val response = api.getProducts(mapOf("categoria_id" to categoryId))
-            if (response.success) {
+            // Tentativo 1: Chiave "categorie" (Plurale, standard per questa API)
+            android.util.Log.d("MenuRepository", "Fetching products (Attempt 1: 'categorie') for: $categoryId")
+            var response = api.getProducts(mapOf("categorie" to categoryId))
+            
+            // Tentativo 2: Fallback su "categoria" (Singolare)
+            if (response == null || !response.success || response.data.isNullOrEmpty()) {
+                android.util.Log.w("MenuRepository", "No products with 'categorie', trying 'categoria'...")
+                response = api.getProducts(mapOf("categoria" to categoryId))
+            }
+
+            // Tentativo 3: Fallback su "categoria_id"
+            if (response == null || !response.success || response.data.isNullOrEmpty()) {
+                android.util.Log.w("MenuRepository", "No products with 'categoria', trying 'categoria_id'...")
+                response = api.getProducts(mapOf("categoria_id" to categoryId))
+            }
+
+            if (response != null && response.success) {
+                val data = response.data ?: emptyList()
+                android.util.Log.d("MenuRepository", "API Response: SUCCESS. Products found: ${data.size}")
+                
                 // 3. Upsert nel database
-                dbHelper.upsertProducts(response.data, categoryId)
+                dbHelper.upsertProducts(data, categoryId)
+                
                 // 4. Emetti dati aggiornati
-                emit(dbHelper.getProductsByCategory(categoryId))
+                val updated = dbHelper.getProductsByCategory(categoryId)
+                android.util.Log.d("MenuRepository", "Emitting ${updated.size} products after update")
+                emit(updated)
+            } else {
+                android.util.Log.e("MenuRepository", "API Response: FAILED or EMPTY. Success: ${response?.success}")
             }
         } catch (e: Exception) {
-            // Offline o errore server
+            android.util.Log.e("MenuRepository", "NETWORK ERROR for $categoryId: ${e.message}", e)
         }
     }
 }

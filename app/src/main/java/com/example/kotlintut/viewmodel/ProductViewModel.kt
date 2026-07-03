@@ -53,6 +53,8 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     private val _categories = MutableStateFlow<List<NetworkCategory>>(emptyList())
     val categories: StateFlow<List<NetworkCategory>> = _categories.asStateFlow()
 
+    private val categoryHistory = java.util.Stack<List<NetworkCategory>>()
+
     init {
         // Carica le categorie all'avvio
         loadCategories()
@@ -95,20 +97,47 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun selectCategory(category: com.example.kotlintut.data.network.NetworkCategory) {
+    fun selectCategory(category: NetworkCategory, onNavigateToProducts: () -> Unit) {
         val lang = _uiState.value.language
-        _uiState.update { it.copy(selectedCategory = category, isLoading = true) }
+        
         viewModelScope.launch {
-            try {
-                // Scarica i prodotti solo quando viene cliccata la categoria
+            val subCategories = dbHelper.getSubCategoriesLocal(category.id)
+            android.util.Log.d("ProductViewModel", "Subcategories for ${category.name} (${category.id}): ${subCategories.size}")
+            
+            if (subCategories.isNotEmpty()) {
+                // Abbiamo sottocategorie: salviamo lo stato attuale e aggiorniamo la lista
+                categoryHistory.push(_uiState.value.categories)
+                _uiState.update { it.copy(categories = subCategories, selectedCategory = category) }
+            } else {
+                // Ultimo livello: carichiamo i prodotti
+                _uiState.update { it.copy(selectedCategory = category, isLoading = true, products = emptyList()) }
+                
+                // Usiamo una variabile per navigare una sola volta
+                var navigated = false
                 repository.getProductsByCategory(category.id).collect { products ->
                     val translated = products.map { translateProduct(it, lang) }
                     _uiState.update { it.copy(products = translated, isLoading = false) }
+                    
+                    if (!navigated) {
+                        navigated = true
+                        onNavigateToProducts()
+                    }
                 }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message, isLoading = false) }
             }
         }
+    }
+
+    fun navigateBackCategory(): Boolean {
+        if (!categoryHistory.isEmpty()) {
+            val previousCategories = categoryHistory.pop()
+            _uiState.update { it.copy(categories = previousCategories, selectedCategory = null) }
+            return true
+        }
+        return false
+    }
+
+    fun isMainLevel(): Boolean {
+        return categoryHistory.isEmpty()
     }
 
     fun selectProduct(product: Product) {

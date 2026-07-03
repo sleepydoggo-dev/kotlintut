@@ -46,7 +46,9 @@ fun CategoriesScreen(
     title: String,
     categories: List<com.example.kotlintut.data.network.NetworkCategory>,
     cartCount: Int,
+    showBack: Boolean = false,
     onCategoryClick: (com.example.kotlintut.data.network.NetworkCategory) -> Unit,
+    onBackClick: () -> Unit = {},
     onMenuClick: () -> Unit,
     onCartClick: () -> Unit,
     translate: (String) -> String
@@ -55,6 +57,10 @@ fun CategoriesScreen(
         modifier = Modifier.pointerInput(Unit) {},
         topBar = { 
             TotemTopBar(
+                title = if (showBack) "" else "Ristorante Totem",
+                showMenu = !showBack,
+                showBack = showBack,
+                onBackClick = onBackClick,
                 onMenuClick = onMenuClick,
                 onCartClick = onCartClick,
                 cartItemCount = cartCount

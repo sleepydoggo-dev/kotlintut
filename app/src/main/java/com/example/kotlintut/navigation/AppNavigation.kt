@@ -194,10 +194,13 @@ fun AppNavigation(
                     title = appState.getString("what_to_order"),
                     categories = productState.categories,
                     cartCount = cartState.itemCount,
+                    showBack = !productViewModel.isMainLevel(),
                     onCategoryClick = { category ->
-                        productViewModel.selectCategory(category)
-                        navController.navigate(Screen.Products.createRoute(category.id))
+                        productViewModel.selectCategory(category) {
+                            navController.navigate(Screen.Products.createRoute(category.id))
+                        }
                     },
+                    onBackClick = { productViewModel.navigateBackCategory() },
                     onMenuClick = { scope.launch { drawerState.open() } },
                     onCartClick = { navController.navigate(Screen.Cart.route) },
                     translate = { appState.getString(it) }

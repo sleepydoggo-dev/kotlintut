@@ -12,7 +12,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
 
     companion object {
         private const val DATABASE_NAME = "RistoranteTotem_Compose.db"
-        private const val DATABASE_VERSION = 3
+        private const val DATABASE_VERSION = 4
 
         const val TABLE_USERS = "utenti"
         const val COLUMN_USER_ID = "id"
@@ -95,6 +95,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                 $COLUMN_CAT_ID INTEGER PRIMARY KEY AUTOINCREMENT,
                 $COLUMN_CAT_REMOTE_ID TEXT UNIQUE,
                 $COLUMN_CAT_NAME TEXT,
+                categoria_padre TEXT,
                 posizionamento INTEGER,
                 visibile INTEGER DEFAULT 1
             )
@@ -156,73 +157,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
             )
         """.trimIndent())
 
-        db.execSQL("""
-            CREATE TABLE $TABLE_ATTRIBUTES (
-                $COLUMN_ATTR_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                $COLUMN_ATTR_PROD_ID INTEGER,
-                $COLUMN_ATTR_NAME TEXT,
-                $COLUMN_ATTR_PRICE REAL,
-                FOREIGN KEY($COLUMN_ATTR_PROD_ID) REFERENCES $TABLE_PRODUCTS($COLUMN_PROD_ID)
-            )
-        """.trimIndent())
-
-        insertInitialProducts(db)
-    }
-
-    private fun insertInitialProducts(db: SQLiteDatabase) {
-        // Inserimento categorie iniziali per evitare UI vuota al primo avvio offline
-        val initialCategories = listOf(
-            Triple("cat_panini", "Panini", 1),
-            Triple("cat_primi", "Primi", 2),
-            Triple("cat_secondi", "Secondi", 3),
-            Triple("cat_bevande", "Bevande", 4)
-        )
-
-        initialCategories.forEach { (id, name, pos) ->
-            val values = ContentValues().apply {
-                put(COLUMN_CAT_REMOTE_ID, id)
-                put(COLUMN_CAT_NAME, name)
-                put("posizionamento", pos)
-                put("visibile", 1)
-            }
-            db.insertWithOnConflict(TABLE_CATEGORIES, null, values, SQLiteDatabase.CONFLICT_REPLACE)
-        }
-
-        val products = listOf(
-            Triple("prod_hamburger", 7.50, "cat_panini"),
-            Triple("prod_cheeseburger", 8.00, "cat_panini"),
-            Triple("prod_pizza", 12.00, "cat_primi"),
-            Triple("prod_pasta_al_pesto", 8.50, "cat_primi"),
-            Triple("prod_pasta", 6.00, "cat_primi"),
-            Triple("prod_lasagna", 9.00, "cat_primi"),
-            Triple("prod_cotoletta", 10.00, "cat_secondi"),
-            Triple("prod_grigliata", 15.00, "cat_secondi"),
-            Triple("prod_acqua", 1.50, "cat_bevande"),
-            Triple("prod_coca", 2.50, "cat_bevande"),
-            Triple("prod_fanta", 2.50, "cat_bevande"),
-            Triple("prod_sprite", 2.50, "cat_bevande"),
-            Triple("prod_birra", 3.00, "cat_bevande")
-        )
-
-        products.forEach { (name, price, catId) ->
-            val values = ContentValues().apply {
-                put(COLUMN_PROD_REMOTE_ID, name) // Usiamo il nome come remote_id per i mock
-                put(COLUMN_PROD_NAME, name)
-                put(COLUMN_PROD_PRICE, price)
-                put(COLUMN_PROD_DESC, "Delizioso $name")
-                put(COLUMN_PROD_CAT, catId)
-                put(COLUMN_PROD_AVAILABLE, 1)
-            }
-            db.insertWithOnConflict(TABLE_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
-        }
-
-        db.execSQL("INSERT INTO $TABLE_ATTRIBUTES ($COLUMN_ATTR_PROD_ID, $COLUMN_ATTR_NAME, $COLUMN_ATTR_PRICE) VALUES (1, 'Cipolla extra', 0.50)")
-        db.execSQL("INSERT INTO $TABLE_ATTRIBUTES ($COLUMN_ATTR_PROD_ID, $COLUMN_ATTR_NAME, $COLUMN_ATTR_PRICE) VALUES (1, 'Bacon', 1.00)")
-        db.execSQL("INSERT INTO $TABLE_ATTRIBUTES ($COLUMN_ATTR_PROD_ID, $COLUMN_ATTR_NAME, $COLUMN_ATTR_PRICE) VALUES (1, 'Senza cetrioli', 0.00)")
-        db.execSQL("INSERT INTO $TABLE_ATTRIBUTES ($COLUMN_ATTR_PROD_ID, $COLUMN_ATTR_NAME, $COLUMN_ATTR_PRICE) VALUES (4, 'Parmigiano extra', 0.80)")
-        db.execSQL("INSERT INTO $TABLE_ATTRIBUTES ($COLUMN_ATTR_PROD_ID, $COLUMN_ATTR_NAME, $COLUMN_ATTR_PRICE) VALUES (4, 'Pesto extra', 1.20)")
-        db.execSQL("INSERT INTO $TABLE_ATTRIBUTES ($COLUMN_ATTR_PROD_ID, $COLUMN_ATTR_NAME, $COLUMN_ATTR_PRICE) VALUES (9, 'Senza ghiaccio', 0.00)")
-        db.execSQL("INSERT INTO $TABLE_ATTRIBUTES ($COLUMN_ATTR_PROD_ID, $COLUMN_ATTR_NAME, $COLUMN_ATTR_PRICE) VALUES (9, 'Fetta di limone', 0.20)")
+        // Rimosso insertInitialProducts(db) per pulizia dati mock
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -244,9 +179,18 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         db.beginTransaction()
         try {
             networkList.forEach { cat ->
+                val parentId = when (val pc = cat.parentCategory) {
+                    is com.google.gson.JsonPrimitive -> {
+                        if (pc.isString) pc.asString else pc.toString()
+                    }
+                    null -> null
+                    else -> pc.toString()
+                }
+                
                 val values = ContentValues().apply {
                     put(COLUMN_CAT_REMOTE_ID, cat.id)
                     put(COLUMN_CAT_NAME, cat.name)
+                    put("categoria_padre", if (parentId == "0" || parentId == "") null else parentId)
                     put("posizionamento", cat.position)
                     put("visibile", if (cat.isVisible) 1 else 0)
                 }
@@ -258,7 +202,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         }
     }
 
-    fun upsertProducts(networkList: List<com.example.kotlintut.data.network.NetworkProduct>, categoryId: String) {
+    fun upsertProducts(networkList: List<com.example.kotlintut.data.network.NetworkProduct>, requestedCategoryId: String) {
         val db = writableDatabase
         db.beginTransaction()
         try {
@@ -267,14 +211,20 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                     put(COLUMN_PROD_REMOTE_ID, prod.id)
                     put(COLUMN_PROD_NAME, prod.name)
                     put(COLUMN_PROD_PRICE, prod.price)
-                    put(COLUMN_PROD_DESC, "") // Il JSON non ha descrizione, mettiamo vuoto
-                    put(COLUMN_PROD_CAT, categoryId)
+                    put(COLUMN_PROD_DESC, "") 
+                    // Se il prodotto non ha l'ID della categoria richiesta nella sua lista, 
+                    // lo associamo comunque per questa visualizzazione, o usiamo il primo disponibile.
+                    // Molte API restituiscono prodotti filtrati, quindi l'associazione è implicita.
+                    put(COLUMN_PROD_CAT, requestedCategoryId)
                     put(COLUMN_PROD_IMG_URL, prod.imageUrl)
                     put(COLUMN_PROD_AVAILABLE, if (prod.isAvailable) 1 else 0)
                 }
-                db.insertWithOnConflict(TABLE_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+                val rowId = db.insertWithOnConflict(TABLE_PRODUCTS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+                android.util.Log.d("DatabaseHelper", "Upserted product ${prod.name} for cat $requestedCategoryId, rowId: $rowId")
             }
             db.setTransactionSuccessful()
+        } catch (e: Exception) {
+            android.util.Log.e("DatabaseHelper", "Error during upsertProducts", e)
         } finally {
             db.endTransaction()
         }
@@ -283,7 +233,29 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
     fun getAllCategoriesLocal(): List<com.example.kotlintut.data.network.NetworkCategory> {
         val list = mutableListOf<com.example.kotlintut.data.network.NetworkCategory>()
         val db = readableDatabase
-        db.query(TABLE_CATEGORIES, null, "visibile=1", null, null, null, "posizionamento ASC").use { cursor ->
+        // Query che restituisce solo le categorie principali (categoria_padre IS NULL o '0')
+        val selection = "visibile=1 AND (categoria_padre IS NULL OR categoria_padre = '0' OR categoria_padre = '')"
+        db.query(TABLE_CATEGORIES, null, selection, null, null, null, "posizionamento ASC").use { cursor ->
+            if (cursor.moveToFirst()) {
+                do {
+                    list.add(com.example.kotlintut.data.network.NetworkCategory(
+                        id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CAT_REMOTE_ID)),
+                        name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CAT_NAME)),
+                        parentCategory = null,
+                        position = cursor.getInt(cursor.getColumnIndexOrThrow("posizionamento")),
+                        isVisible = cursor.getInt(cursor.getColumnIndexOrThrow("visibile")) == 1
+                    ))
+                } while (cursor.moveToNext())
+            }
+        }
+        return list
+    }
+
+    fun getSubCategoriesLocal(parentId: String): List<com.example.kotlintut.data.network.NetworkCategory> {
+        val list = mutableListOf<com.example.kotlintut.data.network.NetworkCategory>()
+        val db = readableDatabase
+        val selection = "visibile=1 AND categoria_padre = ?"
+        db.query(TABLE_CATEGORIES, null, selection, arrayOf(parentId), null, null, "posizionamento ASC").use { cursor ->
             if (cursor.moveToFirst()) {
                 do {
                     list.add(com.example.kotlintut.data.network.NetworkCategory(
