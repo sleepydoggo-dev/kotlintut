@@ -41,6 +41,7 @@ sealed class Screen(val route: String) {
     object Payment : Screen("payment")
     object OrderTracking : Screen("order_tracking")
     object OrderHistory : Screen("order_history")
+    object Segnaposto : Screen("segnaposto_screen")
 }
 
 /** Gestisce la navigazione principale dell'applicazione, configurando il NavHost, le rotte e l'integrazione con i vari ViewModel per sincronizzare lo stato dell'UI. */
@@ -111,6 +112,7 @@ fun AppNavigation(
                     }
                 }
 
+                /* Rimosso Login/Registrazione per modalità Chiosco
                 if (authState.loggedUser == null) {
                     DrawerItem(appState.getString("login_register"), Icons.Default.Login, false) {
                         scope.launch { drawerState.close() }
@@ -127,6 +129,7 @@ fun AppNavigation(
                         }
                     }
                 }
+                */
             }
         }
     ) {
@@ -292,11 +295,8 @@ fun AppNavigation(
                     onQuantityChange = { item, delta -> cartViewModel.updateQuantity(authState.loggedUser, item, delta) },
                     onRemoveItem = { item -> cartViewModel.removeItem(authState.loggedUser, item) },
                     onCheckoutClick = {
-                        if (authState.loggedUser != null) {
-                            navController.navigate(Screen.Payment.route)
-                        } else {
-                            navController.navigate(Screen.GuestContact.route)
-                        }
+                        // In modalità Chiosco navighiamo direttamente al segnaposto
+                        navController.navigate(Screen.Segnaposto.route)
                     },
                     onBack = { navController.popBackStack() }
                 )
@@ -348,6 +348,18 @@ fun AppNavigation(
                         navController.navigate(Screen.Cart.route)
                     },
                     onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.Segnaposto.route) {
+                SegnapostoScreen(
+                    onConfirm = { segnaposto ->
+                        cartViewModel.inviaOrdineMock(segnaposto)
+                    },
+                    onBackToHome = {
+                        navController.navigate(Screen.Categories.route) {
+                            popUpTo(Screen.Categories.route) { inclusive = true }
+                        }
+                    }
                 )
             }
         }

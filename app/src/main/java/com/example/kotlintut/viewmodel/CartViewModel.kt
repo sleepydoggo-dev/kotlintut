@@ -10,6 +10,8 @@ import com.example.kotlintut.data.model.Order
 import com.example.kotlintut.data.model.Product
 import com.example.kotlintut.data.network.NetworkExtra
 import com.example.kotlintut.data.network.NetworkIngredient
+import com.example.kotlintut.data.network.OrderPayload
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -192,5 +194,27 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
                 dbHelper.saveCart(it, emptyList())
             }
         }
+    }
+
+    /** Simula l'invio di un ordine in modalità Chiosco, generando un payload JSON e svuotando il carrello. */
+    fun inviaOrdineMock(segnaposto: String): String {
+        val currentState = _uiState.value
+        val payload = OrderPayload(
+            prodotti = currentState.items,
+            segnaposto = segnaposto,
+            totale = currentState.total
+        )
+        
+        val gson = Gson()
+        val jsonPayload = gson.toJson(payload)
+        
+        android.util.Log.d("TOTEM_API_TEST", "POST https://dolcemare.solteconline.it/api/v1/inserisciOrdine")
+        android.util.Log.d("TOTEM_API_TEST", "Payload: $jsonPayload")
+        
+        // Svuota il carrello
+        _uiState.update { it.copy(items = emptyList()) }
+        
+        // Restituisce un numero d'ordine casuale
+        return (1..999).random().toString()
     }
 }
