@@ -52,19 +52,29 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Aggiunge un prodotto al carrello gestendo il raggruppamento se il prodotto e le personalizzazioni sono identici. */
-    fun addToCart(username: String?, product: Product, quantity: Int, removedIngredients: List<NetworkIngredient>, addedExtras: List<NetworkExtra>) {
+    fun addToCart(
+        username: String?,
+        product: Product,
+        quantity: Int,
+        removedIngredients: List<com.example.kotlintut.data.network.NetworkIngredient>,
+        addedExtras: List<com.example.kotlintut.data.network.NetworkExtra>,
+        selectedFormat: com.example.kotlintut.data.network.NetworkOption? = null,
+        selectedSize: com.example.kotlintut.data.network.NetworkOption? = null
+    ) {
         val currentItems = _uiState.value.items.toMutableList()
         val existingIndex = currentItems.indexOfFirst { 
             it.product.name == product.name && 
             it.removedIngredients == removedIngredients && 
-            it.addedExtras == addedExtras
+            it.addedExtras == addedExtras &&
+            it.selectedFormat == selectedFormat &&
+            it.selectedSize == selectedSize
         }
 
         if (existingIndex != -1) {
             val existingItem = currentItems[existingIndex]
             currentItems[existingIndex] = existingItem.copy(quantity = existingItem.quantity + quantity)
         } else {
-            currentItems.add(CartItem(product, quantity, removedIngredients, addedExtras))
+            currentItems.add(CartItem(product, quantity, removedIngredients, addedExtras, selectedFormat, selectedSize))
         }
 
         _uiState.update { it.copy(items = currentItems) }
@@ -143,7 +153,9 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
             val existingIndex = currentItems.indexOfFirst { 
                 it.product.name == newItem.product.name && 
                 it.removedIngredients == newItem.removedIngredients && 
-                it.addedExtras == newItem.addedExtras
+                it.addedExtras == newItem.addedExtras &&
+                it.selectedFormat == newItem.selectedFormat &&
+                it.selectedSize == newItem.selectedSize
             }
             if (existingIndex != -1) {
                 val existingItem = currentItems[existingIndex]

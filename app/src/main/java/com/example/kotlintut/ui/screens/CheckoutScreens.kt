@@ -119,6 +119,14 @@ fun CartItemRow(item: CartItem, onQuantityChange: (CartItem, Int) -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.product.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 
+                // Formato e Dimensione selezionati
+                if (item.selectedFormat != null) {
+                    Text("Formato: ${item.selectedFormat.name}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                }
+                if (item.selectedSize != null) {
+                    Text("Dimensione: ${item.selectedSize.name}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                }
+
                 // Ingredienti rimossi
                 item.removedIngredients.forEach { ing ->
                     Text("Senza: ${ing.name}", fontSize = 12.sp, color = Color.Red)
@@ -446,6 +454,16 @@ fun OrderRowWithDetails(order: Order, language: String, onReorder: () -> Unit) {
                                 Text("${item.quantity}x ${item.product.name}", fontSize = 14.sp)
                                 Text("€ ${String.format("%.2f", item.getTotalPrice())}", fontSize = 14.sp)
                             }
+                            
+                            // Formato e Dimensione
+                            if (item.selectedFormat != null || item.selectedSize != null) {
+                                val options = listOfNotNull(
+                                    item.selectedFormat?.let { "Formato: ${it.name}" },
+                                    item.selectedSize?.let { "Dimensione: ${it.name}" }
+                                ).joinToString(" - ")
+                                Text("  $options", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                            }
+
                             item.removedIngredients.forEach { ing ->
                                 Text("  - Senza: ${ing.name}", fontSize = 12.sp, color = Color.Red)
                             }

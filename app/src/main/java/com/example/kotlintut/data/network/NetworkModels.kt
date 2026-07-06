@@ -40,6 +40,14 @@ data class NetworkExtra(
 )
 
 /**
+ * Modello opzione singola (formato o dimensione)
+ */
+data class NetworkOption(
+    @SerializedName("nome") val name: String,
+    @SerializedName("prezzo") val price: Double
+)
+
+/**
  * Modello prodotto ricevuto dal server
  */
 data class NetworkProduct(
@@ -50,5 +58,7 @@ data class NetworkProduct(
     @SerializedName("immagine") val imageUrl: String,
     @SerializedName("disponibile") val isAvailable: Boolean,
     @SerializedName("ingredienti") val ingredients: List<NetworkIngredient>?,
-    @SerializedName("aggiunte") val extras: List<NetworkExtra>?
+    @SerializedName("aggiunte") val extras: List<NetworkExtra>?,
+    @SerializedName("formato") val formats: List<NetworkOption>?,
+    @SerializedName("dimensione") val sizes: List<NetworkOption>?
 )

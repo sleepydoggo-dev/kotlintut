@@ -38,6 +38,7 @@ import coil.request.ImageRequest
 import com.example.kotlintut.data.model.Product
 import com.example.kotlintut.data.network.NetworkExtra
 import com.example.kotlintut.data.network.NetworkIngredient
+import com.example.kotlintut.data.network.NetworkOption
 import com.example.kotlintut.ui.components.TotemTopBar
 
 /**
@@ -195,13 +196,17 @@ fun ProductDetailScreen(
     customizeLabel: String,
     addLabel: String,
     onFavoriteToggle: () -> Unit,
-    onAddToCart: (Int, List<NetworkIngredient>, List<NetworkExtra>) -> Unit,
+    onAddToCart: (Int, List<NetworkIngredient>, List<NetworkExtra>, NetworkOption?, NetworkOption?) -> Unit,
     onCartClick: () -> Unit,
     onBack: () -> Unit
 ) {
     var quantity by remember { mutableIntStateOf(1) }
     val removedIngredients = remember { mutableStateListOf<NetworkIngredient>() }
     val addedExtras = remember { mutableStateListOf<NetworkExtra>() }
+    
+    // Inizializza con la prima opzione disponibile se presente
+    var selectedFormat by remember { mutableStateOf(product.formats.firstOrNull()) }
+    var selectedSize by remember { mutableStateOf(product.sizes.firstOrNull()) }
 
     Scaffold(
         modifier = Modifier.pointerInput(Unit) {},
@@ -220,10 +225,12 @@ fun ProductDetailScreen(
                 basePrice = product.price,
                 quantity = quantity,
                 addedExtras = addedExtras,
+                selectedFormat = selectedFormat,
+                selectedSize = selectedSize,
                 buttonLabel = addLabel,
                 onQuantityIncrease = { quantity++ },
                 onQuantityDecrease = { if (quantity > 1) quantity-- },
-                onAddToCart = { onAddToCart(quantity, removedIngredients.toList(), addedExtras.toList()) }
+                onAddToCart = { onAddToCart(quantity, removedIngredients.toList(), addedExtras.toList(), selectedFormat, selectedSize) }
             )
         }
     ) { padding ->
@@ -245,7 +252,27 @@ fun ProductDetailScreen(
             ProductInfo(name = product.name, description = product.description)
             
             Spacer(modifier = Modifier.height(24.dp))
-            
+
+            if (product.formats.isNotEmpty()) {
+                SingleOptionSelector(
+                    title = "Formato",
+                    options = product.formats,
+                    selectedOption = selectedFormat,
+                    onOptionSelected = { selectedFormat = it }
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            if (product.sizes.isNotEmpty()) {
+                SingleOptionSelector(
+                    title = "Dimensione",
+                    options = product.sizes,
+                    selectedOption = selectedSize,
+                    onOptionSelected = { selectedSize = it }
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
             if (ingredients.isNotEmpty()) {
                 IngredientsList(
                     ingredients = ingredients,
@@ -415,6 +442,8 @@ private fun ProductPurchaseBar(
     basePrice: Double,
     quantity: Int,
     addedExtras: List<NetworkExtra>,
+    selectedFormat: NetworkOption? = null,
+    selectedSize: NetworkOption? = null,
     buttonLabel: String,
     onQuantityIncrease: () -> Unit,
     onQuantityDecrease: () -> Unit,
@@ -437,7 +466,10 @@ private fun ProductPurchaseBar(
                 onClick = onAddToCart,
                 modifier = Modifier.height(55.dp)
             ) {
-                val totalPrice = (basePrice + addedExtras.sumOf { it.price }) * quantity
+                val extrasTotal = addedExtras.sumOf { it.price }
+                val formatExtra = selectedFormat?.price ?: 0.0
+                val sizeExtra = selectedSize?.price ?: 0.0
+                val totalPrice = (basePrice + extrasTotal + formatExtra + sizeExtra) * quantity
                 Text("$buttonLabel  € ${String.format("%.2f", totalPrice)}")
             }
         }
@@ -556,6 +588,38 @@ private fun ExtrasList(
                 )
                 Text(
                     text = "${ext.name} (+ € ${String.format("%.2f", ext.price)})",
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+/** Componente per la selezione di un'opzione singola tramite RadioButton. */
+@Composable
+fun SingleOptionSelector(
+    title: String,
+    options: List<NetworkOption>,
+    selectedOption: NetworkOption?,
+    onOptionSelected: (NetworkOption) -> Unit
+) {
+    Column {
+        Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        options.forEach { option ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOptionSelected(option) }
+                    .padding(vertical = 4.dp)
+            ) {
+                RadioButton(
+                    selected = (option == selectedOption),
+                    onClick = { onOptionSelected(option) }
+                )
+                Text(
+                    text = if (option.price > 0) "${option.name} (+ € ${String.format("%.2f", option.price)})" else option.name,
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }

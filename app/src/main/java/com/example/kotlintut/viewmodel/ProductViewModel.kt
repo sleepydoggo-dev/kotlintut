@@ -206,7 +206,9 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     private fun translateProduct(product: Product, lang: String): Product {
         return product.copy(
             name = Locales.getString(product.name, lang),
-            description = Locales.getString(product.description, lang)
+            description = Locales.getString(product.description, lang),
+            formats = product.formats.map { it.copy(name = Locales.getString(it.name, lang)) },
+            sizes = product.sizes.map { it.copy(name = Locales.getString(it.name, lang)) }
         )
     }
 }

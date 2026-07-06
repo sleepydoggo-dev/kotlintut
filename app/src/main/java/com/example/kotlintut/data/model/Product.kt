@@ -1,6 +1,7 @@
 package com.example.kotlintut.data.model
 
 import androidx.compose.runtime.Immutable
+import com.example.kotlintut.data.network.NetworkOption
 
 @Immutable
 data class Product(
@@ -9,5 +10,7 @@ data class Product(
     val price: Double,
     val description: String,
     val imageKey: String,
-    val category: String = ""
+    val category: String = "",
+    val formats: List<NetworkOption> = emptyList(),
+    val sizes: List<NetworkOption> = emptyList()
 )
