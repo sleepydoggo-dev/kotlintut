@@ -16,7 +16,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
 
     companion object {
         private const val DATABASE_NAME = "RistoranteTotem_Compose.db"
-        private const val DATABASE_VERSION = 9
+        private const val DATABASE_VERSION = 10
 
         const val TABLE_USERS = "utenti"
         const val COLUMN_USER_ID = "id"
@@ -57,6 +57,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         const val COLUMN_CART_ADDED_EXT = "added_extras"
         const val COLUMN_CART_ATTRIBUTES = "selected_attributes"
         const val COLUMN_CART_FULL_ATTRIBUTES = "full_attributes"
+        const val COLUMN_CART_CAT = "prodotto_categoria"
 
         const val TABLE_ORDERS = "ordini"
         const val COLUMN_ORDER_ID = "id"
@@ -75,6 +76,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
         const val COLUMN_ITEM_ADDED_EXT = "added_extras"
         const val COLUMN_ITEM_ATTRIBUTES = "selected_attributes"
         const val COLUMN_ITEM_FULL_ATTRIBUTES = "full_attributes"
+        const val COLUMN_ITEM_CAT = "prodotto_categoria"
         
         const val TABLE_INGREDIENTS = "ingredienti"
         const val COLUMN_ING_ID = "id_ingrediente"
@@ -150,7 +152,8 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                 $COLUMN_CART_REMOVED_ING TEXT,
                 $COLUMN_CART_ADDED_EXT TEXT,
                 $COLUMN_CART_ATTRIBUTES TEXT,
-                $COLUMN_CART_FULL_ATTRIBUTES TEXT
+                $COLUMN_CART_FULL_ATTRIBUTES TEXT,
+                $COLUMN_CART_CAT TEXT
             )
         """.trimIndent())
 
@@ -175,6 +178,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                 $COLUMN_ITEM_ADDED_EXT TEXT,
                 $COLUMN_ITEM_ATTRIBUTES TEXT,
                 $COLUMN_ITEM_FULL_ATTRIBUTES TEXT,
+                $COLUMN_ITEM_CAT TEXT,
                 FOREIGN KEY($COLUMN_ITEM_ORDER_ID) REFERENCES $TABLE_ORDERS($COLUMN_ORDER_ID)
             )
         """.trimIndent())
@@ -481,6 +485,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                 put(COLUMN_CART_ADDED_EXT, gson.toJson(item.addedExtras))
                 put(COLUMN_CART_ATTRIBUTES, gson.toJson(item.orderAttributes))
                 put(COLUMN_CART_FULL_ATTRIBUTES, gson.toJson(item.fullAttributesList))
+                put(COLUMN_CART_CAT, item.category)
             }
             db.insert(TABLE_CART, null, values)
         }
@@ -510,6 +515,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                     val addedExtJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_ADDED_EXT))
                     val attrJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_ATTRIBUTES))
                     val fullAttrJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_FULL_ATTRIBUTES))
+                    val category = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CART_CAT)) ?: ""
 
                     val removedIng: List<com.example.kotlintut.data.network.NetworkIngredient> = gson.fromJson(removedIngJson, typeIng) ?: emptyList()
                     val addedExt: List<com.example.kotlintut.data.network.NetworkExtra> = gson.fromJson(addedExtJson, typeExt) ?: emptyList()
@@ -526,7 +532,10 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                         removedIngredients = removedIng,
                         description = desc,
                         imageKey = img,
-                        fullAttributesList = fullAttributes
+                        fullAttributesList = fullAttributes,
+                        category = category,
+                        categorie = listOf(category),
+                        categoriaOrigine = category
                     ))
                 } while (cursor.moveToNext())
             }
@@ -557,6 +566,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                     put(COLUMN_ITEM_ADDED_EXT, gson.toJson(item.addedExtras))
                     put(COLUMN_ITEM_ATTRIBUTES, gson.toJson(item.orderAttributes))
                     put(COLUMN_ITEM_FULL_ATTRIBUTES, gson.toJson(item.fullAttributesList))
+                    put(COLUMN_ITEM_CAT, item.category)
                 }
                 db.insert(TABLE_ORDER_ITEMS, null, itemValues)
             }
@@ -603,6 +613,7 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                     val addedExtJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ITEM_ADDED_EXT))
                     val attrJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ITEM_ATTRIBUTES))
                     val fullAttrJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ITEM_FULL_ATTRIBUTES))
+                    val category = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ITEM_CAT)) ?: ""
 
                     val removedIng: List<com.example.kotlintut.data.network.NetworkIngredient> = gson.fromJson(removedIngJson, typeIng) ?: emptyList()
                     val addedExt: List<com.example.kotlintut.data.network.NetworkExtra> = gson.fromJson(addedExtJson, typeExt) ?: emptyList()
@@ -617,7 +628,10 @@ class DatabaseHelper(private val context: Context) : SQLiteOpenHelper(context, D
                         orderAttributes = orderAttributes,
                         addedExtras = addedExt,
                         removedIngredients = removedIng,
-                        fullAttributesList = fullAttributes
+                        fullAttributesList = fullAttributes,
+                        category = category,
+                        categorie = listOf(category),
+                        categoriaOrigine = category
                     ))
                 } while (cursor.moveToNext())
             }

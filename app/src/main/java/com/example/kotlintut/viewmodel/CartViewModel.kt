@@ -101,7 +101,9 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
                 imageKey = product.imageKey,
                 category = product.category,
                 fullAttributesList = product.attributes,
-                selectedAttributesMap = selectedAttributes
+                selectedAttributesMap = selectedAttributes,
+                categorie = listOf(product.category),
+                categoriaOrigine = product.category
             ))
         }
 
@@ -235,8 +237,27 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
             totaleNonScontato = currentState.total
         )
         
-        val gson = Gson()
-        val jsonPayload = gson.toJson(payload)
+        // Serializzatore personalizzato per garantire l'ordine esatto delle chiavi JSON richiesto dalle API
+        val orderSerializer = com.google.gson.JsonSerializer<OrderPayload> { src, _, context ->
+            val jsonObject = com.google.gson.JsonObject()
+            jsonObject.add("prodotti", context.serialize(src.prodotti))
+            jsonObject.addProperty("totaleNonScontato", src.totaleNonScontato)
+            jsonObject.addProperty("totale", src.totale)
+            jsonObject.addProperty("pagamento", src.pagamento)
+            jsonObject.addProperty("origine", src.origine)
+            jsonObject.addProperty("numeroSegnaPosto", src.numeroSegnaPosto)
+            jsonObject.addProperty("stato", src.stato)
+            jsonObject.add("bevande", context.serialize(src.bevande))
+            jsonObject.add("food", context.serialize(src.food))
+            jsonObject
+        }
+
+        val gson = com.google.gson.GsonBuilder()
+            .registerTypeAdapter(OrderPayload::class.java, orderSerializer)
+            .setPrettyPrinting()
+            .create()
+
+        val jsonPayload = gson.toJson(listOf(payload))
         
         android.util.Log.d("TOTEM_API_TEST", "POST https://dolcemare.solteconline.it/api/v1/inserisciOrdine")
         android.util.Log.d("TOTEM_API_TEST", "Payload: $jsonPayload")

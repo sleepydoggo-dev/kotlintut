@@ -5,17 +5,25 @@ import com.google.gson.annotations.SerializedName
 
 /**
  * Rappresenta un elemento nel carrello degli acquisti, includendo il prodotto appiattito e le sue personalizzazioni.
+ * L'ordine dei campi riflette l'ordine richiesto dalle API per la serializzazione JSON.
  */
 data class CartItem(
-    @SerializedName("idProdotto") val id: String,
+    @SerializedName("quantita") val quantity: Int,
     @SerializedName("nome") val name: String,
     @SerializedName("prezzo") val price: Double,
-    @SerializedName("quantita") val quantity: Int,
-    @SerializedName("attributi") val orderAttributes: List<OrderSelectedAttribute> = emptyList(),
-    @SerializedName("aggiunte") val addedExtras: List<NetworkExtra> = emptyList(),
-    @SerializedName("ingredientiRimossi") val removedIngredients: List<NetworkIngredient> = emptyList(),
+    @SerializedName("categorie") val categorie: List<String> = emptyList(),
+    @SerializedName("categoriaOrigine") val categoriaOrigine: String = "",
     @SerializedName("ingredienti") val ingredients: List<NetworkIngredient> = emptyList(),
-    
+    @SerializedName("ingredientiRimossi") val removedIngredients: List<NetworkIngredient> = emptyList(),
+    @SerializedName("aggiunte") val addedExtras: List<NetworkExtra> = emptyList(),
+    @SerializedName("attributi") val orderAttributes: List<OrderSelectedAttribute> = emptyList(),
+    @SerializedName("bevanda") val bevanda: Boolean = false,
+    @SerializedName("_id") val elementId: String = "",
+    @SerializedName("idProdotto") val id: String,
+    @SerializedName("prezzoUnitario") val prezzoUnitario: Double = price,
+    @SerializedName("sconto") val sconto: Double = 0.0,
+    @SerializedName("daPagare") val daPagare: Double = price,
+
     // Campi per uso interno (UI/DB), non inviati al server nel payload ordine
     @Transient val description: String = "",
     @Transient val imageKey: String = "",
